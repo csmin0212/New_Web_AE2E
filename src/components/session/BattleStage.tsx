@@ -236,7 +236,7 @@ function Grid({
 }
 
 function TokenFace({ unit, size, active }: { unit: Unit; size: number; active?: boolean }) {
-  const img = unit.image ?? unit.character?.portrait ?? unit.character?.standing;
+  const img = unit.image ?? unit.character?.token ?? unit.character?.portrait ?? unit.character?.standing;
   return (
     <div
       className="relative shrink-0 overflow-hidden rounded-full bg-panel-2"

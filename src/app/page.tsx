@@ -72,6 +72,9 @@ export default function Home() {
       <header className="flex items-center justify-between">
         <h1 className="text-xl font-bold">내 캠페인</h1>
         <div className="flex items-center gap-3 text-sm text-muted">
+          <Link href="/library" className="btn-primary">
+            <span>캐릭터 보관함</span>
+          </Link>
           {user.displayName}
           <button className="btn" onClick={() => logOut()}>
             로그아웃

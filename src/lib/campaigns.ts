@@ -161,6 +161,9 @@ export async function addArCharacter(
     mp: Gauge;
     fate: Gauge;
     portrait?: string;
+    standing?: string;
+    token?: string;
+    color?: string;
     kind: Character["kind"];
     ownerUid: string | null;
     order: number;
@@ -176,6 +179,9 @@ export async function addArCharacter(
     mp: opts.mp,
     fate: opts.fate,
     portrait: opts.portrait,
+    standing: opts.standing,
+    token: opts.token,
+    color: opts.color,
     syncedAt: Date.now(),
     order: opts.order,
   };
@@ -202,7 +208,7 @@ export async function setGauge(cid: string, charId: string, key: "hp" | "mp" | "
 export async function updateCharacter(
   cid: string,
   charId: string,
-  patch: Partial<Pick<Character, "ownerUid" | "kind" | "portrait" | "standing" | "color">>,
+  patch: Partial<Pick<Character, "ownerUid" | "kind" | "portrait" | "standing" | "token" | "color">>,
 ) {
   // 비운 칸(undefined)은 필드를 지운다 — Firestore 는 undefined 값을 받지 않는다
   const data = Object.fromEntries(Object.entries(patch).map(([k, v]) => [k, v === undefined ? deleteField() : v]));

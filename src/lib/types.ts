@@ -37,6 +37,7 @@ export type Character = {
   fate: Gauge;
   portrait?: string; // 얼굴 아이콘 (정사각형)
   standing?: string; // 스탠딩 일러스트 (배경 투명 PNG 권장)
+  token?: string; // 전투 토큰 그림 (없으면 얼굴 아이콘)
   color?: string; // 이름표 강조색
   syncedAt: number;
   order: number;

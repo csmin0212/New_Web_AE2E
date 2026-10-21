@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import Link from "next/link";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   addCast,
   addToken,
@@ -16,6 +17,7 @@ import {
   type TokenSide,
 } from "@/lib/scene";
 import { derive } from "@/lib/ar/derive";
+import { addEntryToCampaign, subscribeLibrary, type LibraryEntry } from "@/lib/library";
 import { splitTitle } from "@/lib/stage";
 import { THEMES } from "@/lib/themes";
 import { SheetImport } from "../SheetImport";
@@ -383,7 +385,7 @@ function BattleSection() {
             const init = c.ar ? derive(c.ar).action : agi + per;
             addToken(
               cid,
-              { name: c.sheet.name, charId: c.id, ownerUid: c.ownerUid ?? undefined, side, init, image: c.portrait },
+              { name: c.sheet.name, charId: c.id, ownerUid: c.ownerUid ?? undefined, side, init, image: c.token ?? c.portrait },
               freeCell(side),
             );
             setPick("");
@@ -456,8 +458,57 @@ function NumField({ label, value, min, max, onSave }: { label: string; value: nu
 function ImportSection() {
   const { cid, user, members, characters } = useSession();
   return (
-    <Section title="캐릭터 추가 (시트 · Roll20 · 에너미)">
-      <SheetImport cid={cid} user={user} members={members} nextOrder={characters.length} onDone={() => {}} />
+    <>
+      <LibrarySection />
+      <Section title="캐릭터 추가 (시트 · Roll20 · 에너미)">
+        <SheetImport cid={cid} user={user} members={members} nextOrder={characters.length} onDone={() => {}} />
+      </Section>
+    </>
+  );
+}
+
+// 내 보관함에서 바로 꺼내 넣기
+function LibrarySection() {
+  const { cid, user } = useSession();
+  const [list, setList] = useState<LibraryEntry[]>([]);
+  const [q, setQ] = useState("");
+  const [added, setAdded] = useState<string | null>(null);
+  useEffect(() => subscribeLibrary(user.uid, setList), [user.uid]);
+  const t = q.trim().toLowerCase();
+  const shown = list.filter((e) => !t || [e.name, ...e.tags, e.ar.profile.category ?? ""].join(" ").toLowerCase().includes(t)).slice(0, 30);
+  return (
+    <Section title={`보관함에서 넣기 (${list.length})`} open>
+      <div className="flex gap-1">
+        <input className="input py-1" placeholder="이름·태그 찾기" value={q} onChange={(e) => setQ(e.target.value)} />
+        <Link href="/library" target="_blank" className="btn shrink-0 py-1 text-xs">
+          <span>보관함 열기</span>
+        </Link>
+      </div>
+      <ul className="mt-2 max-h-64 space-y-1 overflow-y-auto">
+        {shown.map((e) => (
+          <li key={e.id} className="flex items-center gap-2 rounded border border-line px-2 py-1 text-xs">
+            {e.portrait ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={e.portrait} alt="" className="h-6 w-6 rounded-full object-cover object-top" />
+            ) : (
+              <span className="h-6 w-6 rounded-full bg-panel-2" />
+            )}
+            <span className="min-w-0 flex-1 truncate">{e.name}</span>
+            <span className="text-muted">{e.kind === "pc" ? "PC" : e.kind === "npc" ? "NPC" : "에너미"}</span>
+            <button
+              className="btn px-2 py-0 text-[11px]"
+              onClick={async () => {
+                await addEntryToCampaign(cid, e, { kind: e.kind === "pc" ? "pc" : "npc", ownerUid: null, order: Date.now() });
+                setAdded(e.name);
+              }}
+            >
+              <span>넣기</span>
+            </button>
+          </li>
+        ))}
+        {list.length === 0 && <li className="text-[11px] text-muted">보관함이 비어 있어요.</li>}
+      </ul>
+      {added && <p className="mt-1 text-[11px] text-accent">{added} 넣었어요.</p>}
     </Section>
   );
 }
