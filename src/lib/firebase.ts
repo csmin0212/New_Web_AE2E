@@ -35,6 +35,7 @@ const app = getApps().length
 
 // 로그인 유지: 브라우저를 껐다 켜도 그대로 (IndexedDB, 안 되면 localStorage)
 function makeAuth(): Auth {
+  if (typeof window === "undefined") return getAuth(app); // 서버 미리 그리기에는 브라우저 저장소가 없다
   try {
     return initializeAuth(app, {
       persistence: [indexedDBLocalPersistence, browserLocalPersistence],
