@@ -1,5 +1,6 @@
 "use client";
 
+import { LoginButton } from "@/components/LoginButton";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
@@ -17,7 +18,7 @@ import { SessionProvider, useSession } from "@/components/session/SessionContext
 import { TalkStage } from "@/components/session/TalkStage";
 import { ThemeRoot } from "@/components/session/ThemeRoot";
 import { TopBar } from "@/components/session/TopBar";
-import { signInWithGoogle, useAuth } from "@/lib/auth";
+import { useAuth } from "@/lib/auth";
 import { useCampaign } from "@/lib/useCampaign";
 
 export default function CampaignPage() {
@@ -29,9 +30,7 @@ export default function CampaignPage() {
   if (!user) {
     return (
       <Center>
-        <button className="btn-primary" onClick={() => signInWithGoogle()}>
-          구글로 로그인
-        </button>
+        <LoginButton className="w-72" />
       </Center>
     );
   }

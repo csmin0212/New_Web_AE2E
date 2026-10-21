@@ -1,10 +1,11 @@
 "use client";
 
+import { LoginButton } from "@/components/LoginButton";
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { logOut, signInAsTestUser, signInWithGoogle, useAuth, USING_EMULATORS } from "@/lib/auth";
+import { logOut, signInAsTestUser, useAuth, USING_EMULATORS } from "@/lib/auth";
 import { createCampaign, joinCampaign } from "@/lib/campaigns";
 import { db } from "@/lib/firebase";
 import type { Role } from "@/lib/types";
@@ -47,9 +48,7 @@ export default function Home() {
         <div className="w-full max-w-sm rounded-xl border border-line bg-panel p-8 text-center">
           <h1 className="text-xl font-bold">TRPG 세션 툴</h1>
           <p className="mt-2 text-sm text-muted">아리안로드 2E 캠페인용</p>
-          <button className="btn-primary mt-6 w-full" onClick={() => signInWithGoogle()}>
-            구글로 로그인
-          </button>
+          <LoginButton className="mt-6 w-full" />
           {USING_EMULATORS && (
             <div className="mt-6 border-t border-line pt-4 text-left">
               <p className="text-xs text-muted">에뮬레이터 테스트 계정</p>

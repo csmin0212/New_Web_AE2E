@@ -1,7 +1,15 @@
 "use client";
 
 import { getApp, getApps, initializeApp } from "firebase/app";
-import { connectAuthEmulator, getAuth } from "firebase/auth";
+import {
+  browserLocalPersistence,
+  browserPopupRedirectResolver,
+  connectAuthEmulator,
+  getAuth,
+  indexedDBLocalPersistence,
+  initializeAuth,
+  type Auth,
+} from "firebase/auth";
 import { connectDatabaseEmulator, getDatabase } from "firebase/database";
 import { connectFirestoreEmulator, getFirestore } from "firebase/firestore";
 
@@ -25,7 +33,19 @@ const app = getApps().length
       appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
     });
 
-export const auth = getAuth(app);
+// 로그인 유지: 브라우저를 껐다 켜도 그대로 (IndexedDB, 안 되면 localStorage)
+function makeAuth(): Auth {
+  try {
+    return initializeAuth(app, {
+      persistence: [indexedDBLocalPersistence, browserLocalPersistence],
+      popupRedirectResolver: browserPopupRedirectResolver,
+    });
+  } catch {
+    return getAuth(app); // 개발 중 핫 리로드로 이미 만들어져 있을 때
+  }
+}
+
+export const auth = makeAuth();
 export const db = getFirestore(app);
 export const rtdb = getDatabase(app);
 

@@ -16,48 +16,55 @@ export function JournalView({ entry }: { entry: JournalEntry }) {
         // eslint-disable-next-line @next/next/no-img-element
         <img src={entry.image} alt="" className="max-h-[50vh] w-full rounded-md border border-line object-contain" />
       )}
-      <div className="space-y-2 text-[15px] leading-relaxed">
-        {parseBody(entry.body).map((b, i) => {
-          const text = <Inline text={b.text} />;
-          switch (b.kind) {
-            case "h1":
-              return (
-                <h2 key={i} className="font-display border-b border-line pt-2 pb-1 text-lg font-bold text-accent">
-                  {text}
-                </h2>
-              );
-            case "h2":
-              return (
-                <h3 key={i} className="font-display pt-1 font-bold">
-                  {text}
-                </h3>
-              );
-            case "li":
-              return (
-                <div key={i} className="flex gap-2 pl-1">
-                  <span className="text-accent">◆</span>
-                  <span>{text}</span>
-                </div>
-              );
-            case "quote":
-              return (
-                <blockquote key={i} className="border-l-2 border-accent/60 pl-3 text-muted italic">
-                  {text}
-                </blockquote>
-              );
-            case "hr":
-              return <hr key={i} className="border-line" />;
-            default:
-              return (
-                <p key={i} className="whitespace-pre-wrap">
-                  {text}
-                </p>
-              );
-          }
-        })}
-        {!entry.body.trim() && <p className="text-muted">내용이 비어 있어요.</p>}
-      </div>
+      <JournalBody body={entry.body} />
     </article>
+  );
+}
+
+// 본문만 (등장인물·지역 도감에서도 쓴다)
+export function JournalBody({ body }: { body: string }) {
+  return (
+    <div className="space-y-2 text-[15px] leading-relaxed">
+      {parseBody(body).map((b, i) => {
+        const text = <Inline text={b.text} />;
+        switch (b.kind) {
+          case "h1":
+            return (
+              <h2 key={i} className="font-display border-b border-line pt-2 pb-1 text-lg font-bold text-accent">
+                {text}
+              </h2>
+            );
+          case "h2":
+            return (
+              <h3 key={i} className="font-display pt-1 font-bold">
+                {text}
+              </h3>
+            );
+          case "li":
+            return (
+              <div key={i} className="flex gap-2 pl-1">
+                <span className="text-accent">◆</span>
+                <span>{text}</span>
+              </div>
+            );
+          case "quote":
+            return (
+              <blockquote key={i} className="border-l-2 border-accent/60 pl-3 text-muted italic">
+                {text}
+              </blockquote>
+            );
+          case "hr":
+            return <hr key={i} className="border-line" />;
+          default:
+            return (
+              <p key={i} className="whitespace-pre-wrap">
+                {text}
+              </p>
+            );
+        }
+      })}
+      {!body.trim() && <p className="text-muted">내용이 비어 있어요.</p>}
+    </div>
   );
 }
 

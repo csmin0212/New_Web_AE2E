@@ -1,13 +1,13 @@
 // 디자인 프리셋. GM이 캠페인 기본값을 고르고, 보는 사람은 자기 화면에서만 바꿔 볼 수 있다.
 // 색은 CSS 변수로, 장식(사선·금박 모서리·마법진 선)은 data-skin 으로 globals.css 에서 갈린다.
 
-export type ThemeId = "classic" | "gothic" | "phantom" | "arcane";
+export type ThemeId = "classic" | "gothic" | "phantom" | "arcane" | "online";
 
 export type Theme = {
   id: ThemeId;
   name: string;
   tagline: string;
-  skin: "ornate" | "harlequin" | "slant" | "arcane";
+  skin: "ornate" | "harlequin" | "slant" | "arcane" | "hud";
   swatch: [string, string, string];
   vars: Record<string, string>;
 };
@@ -137,6 +137,40 @@ export const THEMES: Theme[] = [
       "--st-tag-accent": "#8fd8ff",
       "--pattern":
         "radial-gradient(1px 1px at 20% 30%,rgba(230,236,255,.5),transparent),radial-gradient(1px 1px at 70% 60%,rgba(230,236,255,.35),transparent),radial-gradient(1.5px 1.5px at 45% 80%,rgba(143,184,255,.4),transparent)",
+    },
+  },
+  {
+    id: "online",
+    name: "온라인 · 아리안로드 온라인",
+    tagline: "현대 온라인 게임 화면. 하늘색·흰색 바탕에 얇은 HUD 선 (블루 아카이브·SAO 감성)",
+    skin: "hud",
+    swatch: ["#eef6fc", "#2aa7ff", "#ffd23f"],
+    vars: {
+      "--bg": "#e9f4fc",
+      "--panel": "#ffffff",
+      "--panel-2": "#e4f2fc",
+      "--line": "#b8d8f0",
+      "--text": "#14304d",
+      "--muted": "#5d7b98",
+      "--accent": "#2aa7ff",
+      "--accent-ink": "#ffffff",
+      "--accent-2": "#ffd23f",
+      "--plate-bg": "linear-gradient(90deg,#2aa7ff,#5cc8ff)",
+      "--plate-text": "#ffffff",
+      "--dialog-bg": "linear-gradient(180deg,rgba(255,255,255,.92),rgba(236,246,253,.96))",
+      "--dialog-line": "#2aa7ff",
+      "--font-display": "var(--font-noto)",
+      "--font-latin": "var(--font-exo)",
+      "--st-bar": "#0f2540",
+      "--st-outline": "#ffffff",
+      "--st-bubble": "#ffffff",
+      "--st-bubble-ink": "#14304d",
+      "--st-tag": "#2aa7ff",
+      "--st-tag-accent": "#ffe58a",
+      "--hp": "#ff5a76",
+      "--mp": "#2aa7ff",
+      "--pattern":
+        "linear-gradient(rgba(42,167,255,.07) 1px,transparent 1px) 0 0/28px 28px,linear-gradient(90deg,rgba(42,167,255,.07) 1px,transparent 1px) 0 0/28px 28px,linear-gradient(160deg,#ffffff 0%,#e3f2fd 55%,#cfe9fb 100%)",
     },
   },
 ];

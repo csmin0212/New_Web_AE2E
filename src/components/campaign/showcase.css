@@ -1,0 +1,290 @@
+/*
+ * 등장인물·지역 도감 — 보여 주기 위한 연출 (차례로 솟아오르기, 무대 조명, 사선 이름띠)
+ */
+
+/* 차례로 등장: style="--i: 순번" */
+.sc-rise {
+  animation: sc-rise 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(var(--i, 0) * 110ms + 80ms);
+}
+@keyframes sc-rise {
+  from {
+    opacity: 0;
+    translate: 0 28px;
+    filter: blur(4px);
+  }
+}
+
+/* ── 파티 무대 ── */
+.sc-stage {
+  position: relative;
+  overflow: hidden;
+  border-bottom: 1px solid var(--line);
+  background:
+    radial-gradient(ellipse 60% 70% at 50% 100%, color-mix(in srgb, var(--accent) 30%, transparent), transparent 70%),
+    linear-gradient(180deg, var(--st-bar) 0%, color-mix(in srgb, var(--st-bar) 70%, var(--accent)) 140%);
+  color: #f4f1e8;
+}
+/* 위에서 내려오는 조명 */
+.sc-stage::before {
+  content: "";
+  position: absolute;
+  inset: -20% 0 0;
+  background: repeating-conic-gradient(from 180deg at 50% -10%, rgba(255, 255, 255, 0.06) 0 4deg, transparent 4deg 13deg);
+  mask-image: linear-gradient(180deg, #000, transparent 85%);
+  pointer-events: none;
+  animation: sc-beam 18s linear infinite alternate;
+}
+@keyframes sc-beam {
+  to {
+    rotate: 4deg;
+  }
+}
+/* 바닥 반사 */
+.sc-stage::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 22%;
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.55), transparent);
+  pointer-events: none;
+}
+.sc-title {
+  position: absolute;
+  top: 14px;
+  left: 20px;
+  z-index: 2;
+  font-family: var(--font-latin), serif;
+  letter-spacing: 0.35em;
+  font-size: 12px;
+  color: var(--st-outline);
+  opacity: 0.85;
+}
+.sc-title b {
+  display: block;
+  font-family: var(--font-display), serif;
+  letter-spacing: 0.05em;
+  font-size: clamp(20px, 3vw, 30px);
+  color: #fff;
+  opacity: 1;
+}
+
+.sc-row {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: clamp(4px, 2vw, 28px);
+  height: clamp(320px, 52vh, 560px);
+  padding: 56px 16px 0;
+}
+.sc-hero {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  cursor: pointer;
+  transition: translate 0.25s ease, filter 0.25s ease;
+  min-width: 0;
+}
+.sc-hero:hover {
+  translate: 0 -8px;
+  filter: drop-shadow(0 0 18px color-mix(in srgb, var(--hero, var(--accent)) 70%, transparent));
+}
+.sc-hero .sc-sprite {
+  height: 88%;
+  width: auto;
+  max-width: 34vw;
+  object-fit: contain;
+  object-position: bottom;
+  filter: drop-shadow(2px 0 0 var(--st-outline)) drop-shadow(-2px 0 0 var(--st-outline)) drop-shadow(0 -2px 0 var(--st-outline))
+    drop-shadow(0 16px 20px rgba(0, 0, 0, 0.5));
+}
+.sc-hero .sc-frame {
+  height: 72%;
+  aspect-ratio: 3 / 4;
+  max-width: 30vw;
+  margin-bottom: 4%;
+  border: 3px solid var(--st-outline);
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.5);
+}
+.sc-hero .sc-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 15%;
+}
+/* 발치의 사선 이름띠 */
+.sc-plate {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  translate: -50% 0;
+  z-index: 2;
+  min-width: 140px;
+  padding: 4px 16px 5px;
+  text-align: center;
+  white-space: nowrap;
+  background: var(--hero, var(--accent));
+  color: #fff;
+  transform: skewX(-12deg);
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.6);
+}
+.sc-plate > * {
+  display: block;
+  transform: skewX(12deg);
+}
+.sc-plate small {
+  font-size: 10px;
+  opacity: 0.9;
+  letter-spacing: 0.05em;
+}
+.sc-plate b {
+  font-family: var(--font-display), serif;
+  font-size: clamp(14px, 1.6vw, 19px);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+}
+
+/* ── 인물 카드 ── */
+.sc-card {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  cursor: pointer;
+  text-align: left;
+  transition: translate 0.2s ease, box-shadow 0.2s ease;
+}
+.sc-card:hover {
+  translate: 0 -4px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35), 0 0 0 2px var(--hero, var(--accent));
+}
+.sc-card img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 15%;
+  transition: scale 0.4s ease;
+}
+.sc-card:hover img {
+  scale: 1.05;
+}
+.sc-card .sc-band {
+  position: absolute;
+  inset: auto 0 0;
+  padding: 26px 10px 8px;
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.55) 60%, transparent);
+  color: #fff;
+}
+.sc-card .sc-band::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 5px;
+  height: 100%;
+  background: var(--hero, var(--accent));
+  clip-path: polygon(0 30%, 100% 20%, 100% 100%, 0 100%);
+}
+
+/* ── 지역 도감 ── */
+.sc-place {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  cursor: pointer;
+  text-align: left;
+}
+.sc-place img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: scale 0.6s ease;
+}
+.sc-place:hover img {
+  scale: 1.06;
+}
+.sc-place .sc-band {
+  position: absolute;
+  inset: auto 0 0;
+  padding: 30px 12px 10px;
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.8), transparent);
+  color: #fff;
+}
+
+/* 지역 상세: 큰 그림 위에 지명이 천천히 떠오른다 */
+.sc-vista {
+  position: relative;
+  height: clamp(220px, 48vh, 520px);
+  overflow: hidden;
+  background: #000;
+}
+.sc-vista img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  animation: sc-kenburns 24s ease-in-out infinite alternate;
+}
+@keyframes sc-kenburns {
+  from {
+    scale: 1.02;
+  }
+  to {
+    scale: 1.12;
+    translate: -2% -1%;
+  }
+}
+.sc-vista-title {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 60px 24px 22px;
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.85), transparent);
+  color: #fff;
+}
+.sc-vista-title small {
+  display: block;
+  font-family: var(--font-latin), serif;
+  letter-spacing: 0.3em;
+  font-size: 11px;
+  color: var(--st-outline);
+  animation: sc-letter 1.6s ease both;
+}
+.sc-vista-title h2 {
+  font-family: var(--font-display), serif;
+  font-size: clamp(26px, 4.5vw, 48px);
+  font-weight: 900;
+  line-height: 1.1;
+  animation: sc-rise 0.9s 0.15s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes sc-letter {
+  from {
+    opacity: 0;
+    letter-spacing: 0.9em;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sc-rise,
+  .sc-stage::before,
+  .sc-vista img,
+  .sc-vista-title h2,
+  .sc-vista-title small {
+    animation: none;
+  }
+}

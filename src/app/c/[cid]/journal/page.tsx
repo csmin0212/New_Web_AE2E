@@ -1,58 +1,29 @@
 "use client";
 
-import Link from "next/link";
-import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { CampaignShell } from "@/components/campaign/CampaignShell";
 import { ImageDrop } from "@/components/ImageDrop";
 import { JournalView } from "@/components/JournalView";
-import { SessionProvider, useSession } from "@/components/session/SessionContext";
-import { ThemeRoot } from "@/components/session/ThemeRoot";
-import { signInWithGoogle, useAuth } from "@/lib/auth";
+import { useSession } from "@/components/session/SessionContext";
 import {
   JOURNAL_TYPES,
   createJournal,
   deleteJournal,
+  isDocType,
   saveJournal,
   showJournal,
   subscribeJournal,
   type JournalEntry,
   type JournalType,
 } from "@/lib/journal";
-import { useCampaign } from "@/lib/useCampaign";
 
 const SAVE_DELAY = 700;
 
 export default function JournalPage() {
-  const { cid } = useParams<{ cid: string }>();
-  const { user, loading } = useAuth();
-  const state = useCampaign(cid, user?.uid);
-
-  if (loading) return <Center>불러오는 중…</Center>;
-  if (!user)
-    return (
-      <Center>
-        <button className="btn-primary" onClick={() => signInWithGoogle()}>
-          구글로 로그인
-        </button>
-      </Center>
-    );
-  if (state.status === "denied")
-    return (
-      <Center>
-        <p>이 캠페인에 참가하지 않았거나 없는 캠페인이에요.</p>
-        <Link href="/" className="btn mt-4">
-          홈으로
-        </Link>
-      </Center>
-    );
-  if (state.status === "loading") return <Center>불러오는 중…</Center>;
-
   return (
-    <SessionProvider cid={cid} user={user} campaign={state.campaign} members={state.members} characters={state.characters}>
-      <ThemeRoot>
-        <Journal />
-      </ThemeRoot>
-    </SessionProvider>
+    <CampaignShell active="journal">
+      <Journal />
+    </CampaignShell>
   );
 }
 
@@ -60,8 +31,9 @@ export default function JournalPage() {
 //  │ 목록 (검색·종류)  │ 읽기 / 고치기                     │
 //  └─────────────────────────────────────────────────────┘
 function Journal() {
-  const { cid, user, isGM, campaign } = useSession();
-  const [list, setList] = useState<JournalEntry[]>([]);
+  const { cid, user, isGM } = useSession();
+  const [all, setList] = useState<JournalEntry[]>([]);
+  const list = all.filter((e) => isDocType(e.type)); // 인물·지역은 각자 페이지에서
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<JournalType | "all">("all");
   const [search, setSearch] = useState("");
@@ -83,17 +55,7 @@ function Journal() {
   }
 
   return (
-    <div className="flex h-dvh flex-col" style={{ background: "var(--pattern), var(--bg)" }}>
-      <header className="flex items-center gap-3 border-b border-line bg-panel/90 px-3 py-2">
-        <Link href={`/c/${cid}`} className="btn h-8 text-xs">
-          <span>← 세션으로</span>
-        </Link>
-        <div className="leading-tight">
-          <div className="font-display font-bold">{campaign.name}</div>
-          <div className="font-latin text-[10px] text-accent">JOURNAL · HANDOUTS</div>
-        </div>
-      </header>
-
+    <div className="flex h-full flex-col">
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
         {/* 목록 */}
         <aside className={`flex min-h-0 w-full shrink-0 flex-col border-line md:w-72 md:border-r ${current ? "hidden md:flex" : "flex"}`}>
@@ -307,6 +269,3 @@ function Entry({ entry, onBack, onDeleted }: { entry: JournalEntry; onBack: () =
   );
 }
 
-function Center({ children }: { children: React.ReactNode }) {
-  return <main className="grid min-h-screen place-items-center p-6 text-center text-muted">{children}</main>;
-}

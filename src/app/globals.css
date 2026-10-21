@@ -124,6 +124,23 @@ body {
     0 0 0 1px rgba(143, 184, 255, 0.06),
     0 0 18px rgba(143, 184, 255, 0.08);
 }
+/* 온라인(HUD): 흰 유리 패널, 얇은 하늘색 선, 왼쪽 위 짧은 강조선 */
+[data-skin="hud"] .panel {
+  border-radius: 4px;
+  border-color: var(--line);
+  box-shadow: 0 6px 18px rgba(30, 110, 180, 0.12);
+}
+[data-skin="hud"] .panel::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: 10px;
+  width: 26px;
+  height: 3px;
+  background: var(--accent);
+  border-radius: 0 0 2px 2px;
+  pointer-events: none;
+}
 
 /* 이름표 */
 .plate {
@@ -160,6 +177,19 @@ body {
 }
 [data-skin="slant"] .plate > * {
   transform: skewX(12deg);
+}
+[data-skin="hud"] .plate {
+  border: 0;
+  border-radius: 3px;
+  transform: skewX(-10deg);
+}
+[data-skin="hud"] .plate > * {
+  transform: skewX(10deg);
+}
+[data-skin="hud"] .font-latin {
+  font-style: italic;
+  font-weight: 800;
+  letter-spacing: 0.08em;
 }
 [data-skin="arcane"] .plate {
   border-radius: 999px;
@@ -219,6 +249,32 @@ body {
 [data-skin="arcane"] .btn,
 [data-skin="arcane"] .btn-primary {
   border-radius: 999px;
+}
+[data-skin="hud"] .btn,
+[data-skin="hud"] .btn-primary {
+  border-radius: 4px;
+  transform: skewX(-8deg);
+}
+[data-skin="hud"] .btn > *,
+[data-skin="hud"] .btn-primary > * {
+  transform: skewX(8deg);
+}
+[data-skin="hud"] .btn {
+  background: #fff;
+  box-shadow: 0 2px 0 rgba(42, 167, 255, 0.18);
+}
+[data-skin="hud"] .btn-primary {
+  background: linear-gradient(90deg, #2aa7ff, #4fc3ff);
+  border-color: #1b95ec;
+  box-shadow: 0 3px 10px rgba(42, 167, 255, 0.35);
+}
+[data-skin="hud"] .input {
+  background: #fff;
+}
+[data-skin="hud"] .dialog-box {
+  border-radius: 6px;
+  border-left: 4px solid var(--accent);
+  box-shadow: 0 8px 24px rgba(30, 110, 180, 0.18);
 }
 
 /* ── 애니메이션 ─────────────────────────────────────────── */

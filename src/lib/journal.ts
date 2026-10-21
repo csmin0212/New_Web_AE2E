@@ -9,7 +9,7 @@ import { db, rtdb } from "./firebase";
 //   플레이어도 자기 메모를 쓸 수 있다 (비공개 또는 공개).
 // 보여주기: fx/{cid}/show = { id, at } — GM 이 누르면 모두의 화면에 핸드아웃이 뜬다.
 
-export type JournalType = "handout" | "journal" | "note";
+export type JournalType = "handout" | "journal" | "note" | "person" | "place";
 
 export const JOURNAL_TYPES: { id: JournalType; label: string; hint: string }[] = [
   { id: "handout", label: "핸드아웃", hint: "PC 사명·연고, 받은 단서" },
@@ -17,10 +17,18 @@ export const JOURNAL_TYPES: { id: JournalType; label: string; hint: string }[] =
   { id: "note", label: "메모", hint: "진행 기록·개인 메모" },
 ];
 
+// 핸드아웃·저널 페이지에 나오는 문서 종류 (person = 등장인물 페이지, place = 지역 도감)
+export function isDocType(t: JournalType) {
+  return t === "handout" || t === "journal" || t === "note";
+}
+
 export type JournalEntry = {
   id: string;
   type: JournalType;
   title: string;
+  subtitle?: string; // 칭호·소속 (인물), 한 줄 소개 (지역)
+  group?: string; // 묶음: 인물은 세력·소속, 지역은 나라·권역
+  charId?: string; // 캠페인 캐릭터와 연결된 인물 프로필
   body: string; // 간단한 마크다운 (# 제목, - 목록, **굵게**)
   image?: string;
   shared: boolean; // 모두에게 공개
@@ -39,6 +47,9 @@ function toEntry(id: string, d: Record<string, unknown>): JournalEntry {
     title: (d.title as string) ?? "",
     body: (d.body as string) ?? "",
     image: (d.image as string) || undefined,
+    subtitle: (d.subtitle as string) || undefined,
+    group: (d.group as string) || undefined,
+    charId: (d.charId as string) || undefined,
     shared: !!d.shared,
     viewers: (d.viewers as string[]) ?? [],
     ownerUid: (d.ownerUid as string) ?? "",
@@ -74,14 +85,15 @@ export function subscribeJournal(cid: string, uid: string, isGM: boolean, cb: (l
   return () => unsubs.forEach((u) => u());
 }
 
-export async function createJournal(cid: string, uid: string, type: JournalType): Promise<string> {
+export async function createJournal(cid: string, uid: string, type: JournalType, extra: Partial<Omit<JournalEntry, "id">> = {}): Promise<string> {
   const label = JOURNAL_TYPES.find((t) => t.id === type)?.label ?? "저널";
   const r = await addDoc(col(cid), {
+    ...JSON.parse(JSON.stringify(extra)),
     type,
-    title: `새 ${label}`,
-    body: "",
-    shared: false,
-    viewers: [],
+    title: extra.title ?? `새 ${label}`,
+    body: extra.body ?? "",
+    shared: extra.shared ?? false,
+    viewers: extra.viewers ?? [],
     ownerUid: uid,
     order: Date.now(),
     updatedAt: Date.now(),
@@ -91,7 +103,21 @@ export async function createJournal(cid: string, uid: string, type: JournalType)
 
 export async function saveJournal(cid: string, e: JournalEntry) {
   const { id, ...rest } = e;
-  await updateDoc(doc(db, "campaigns", cid, "journal", id), { ...JSON.parse(JSON.stringify(rest)), image: rest.image ?? null, updatedAt: Date.now() });
+  await updateDoc(doc(db, "campaigns", cid, "journal", id), {
+    ...JSON.parse(JSON.stringify(rest)),
+    image: rest.image ?? null,
+    subtitle: rest.subtitle ?? null,
+    group: rest.group ?? null,
+    charId: rest.charId ?? null,
+    updatedAt: Date.now(),
+  });
+}
+
+// 일부만 고치기 (비운 칸은 지운다)
+export async function patchJournal(cid: string, id: string, patch: Partial<Omit<JournalEntry, "id" | "ownerUid">>) {
+  const data: Record<string, unknown> = { updatedAt: Date.now() };
+  for (const [k, v] of Object.entries(patch)) data[k] = v === undefined || v === "" ? null : v;
+  await updateDoc(doc(db, "campaigns", cid, "journal", id), data);
 }
 
 export async function deleteJournal(cid: string, id: string) {

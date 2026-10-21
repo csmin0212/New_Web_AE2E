@@ -1,11 +1,12 @@
 "use client";
 
+import { LoginButton } from "@/components/LoginButton";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { AddToCampaign } from "@/components/library/AddToCampaign";
 import { ImportPanel } from "@/components/library/ImportPanel";
-import { signInWithGoogle, useAuth } from "@/lib/auth";
+import { useAuth } from "@/lib/auth";
 import { blankEntry, createEntry, deleteEntries, subscribeLibrary, type LibraryEntry, type LibraryKind } from "@/lib/library";
 
 const KIND_LABEL: Record<LibraryKind, string> = { pc: "PC", npc: "NPC", enemy: "에너미" };
@@ -47,9 +48,7 @@ export default function LibraryPage() {
   if (!user)
     return (
       <Center>
-        <button className="btn-primary" onClick={() => signInWithGoogle()}>
-          <span>구글로 로그인</span>
-        </button>
+        <LoginButton className="w-72" />
       </Center>
     );
 

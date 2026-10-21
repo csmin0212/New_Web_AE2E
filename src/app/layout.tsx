@@ -4,6 +4,7 @@ import {
   Black_Han_Sans,
   Cinzel,
   Cormorant_Garamond,
+  Exo_2,
   Gowun_Batang,
   Noto_Sans_KR,
   Noto_Serif_KR,
@@ -25,13 +26,15 @@ const cormorant = Cormorant_Garamond({
   style: ["normal", "italic"],
 });
 
+const exo = Exo_2({ variable: "--font-exo", subsets: ["latin"], weight: ["500", "700", "800"], style: ["normal", "italic"] });
+
 export const metadata: Metadata = {
   title: "TRPG 세션 툴",
   description: "아리안로드 2E 캠페인용 세션 툴",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const fonts = [notoSans, notoSerif, blackHan, gowun, cinzel, anton, cormorant].map((f) => f.variable).join(" ");
+  const fonts = [notoSans, notoSerif, blackHan, gowun, cinzel, anton, cormorant, exo].map((f) => f.variable).join(" ");
   return (
     <html lang="ko" className={`${fonts} h-full antialiased`}>
       <body className="min-h-full font-sans">

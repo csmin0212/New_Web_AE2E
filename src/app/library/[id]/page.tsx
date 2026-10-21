@@ -1,12 +1,13 @@
 "use client";
 
+import { LoginButton } from "@/components/LoginButton";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ArSheetEditor } from "@/components/ArSheetEditor";
 import { ImageDrop } from "@/components/ImageDrop";
 import { AddToCampaign } from "@/components/library/AddToCampaign";
-import { signInWithGoogle, useAuth } from "@/lib/auth";
+import { useAuth } from "@/lib/auth";
 import { createEntry, deleteEntry, saveEntry, subscribeEntry, type LibraryEntry, type LibraryKind } from "@/lib/library";
 import type { Gauge } from "@/lib/types";
 
@@ -59,9 +60,7 @@ export default function LibraryEntryPage() {
   if (!user)
     return (
       <Center>
-        <button className="btn-primary" onClick={() => signInWithGoogle()}>
-          <span>구글로 로그인</span>
-        </button>
+        <LoginButton className="w-72" />
       </Center>
     );
   if (!current)
