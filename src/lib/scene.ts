@@ -24,6 +24,9 @@ export const PHASES: { id: Phase; ko: string; en: string }[] = [
   { id: "free", ko: "자유 진행", en: "INTERLUDE" },
 ];
 
+// 대화 무대 보기: focus = 인물을 크게 세운다 (대화 집중), scene = 배경을 살리고 말하는 사람 얼굴만 (배경 모드)
+export type TalkView = "focus" | "scene";
+
 export type CastEntry = { name: string; image?: string; charId?: string; slot: number };
 export type NpcPreset = { name: string; image?: string; color?: string };
 
@@ -36,6 +39,8 @@ export type Scene = {
   cg: string | null; // 장면 위에 띄우는 컷신 그림
   place: string;
   autoCast: boolean; // 말한 사람이 자동으로 무대에 오르는지
+  talkView: TalkView;
+  actorScale: number; // 무대 인물 크기 (1 = 기본)
   cast: Record<string, CastEntry>;
   npcs: Record<string, NpcPreset>;
   presets: Record<string, ScenePreset>; // 저장해 둔 장면 (코코포리아의 씬)
@@ -52,6 +57,8 @@ export const DEFAULT_SCENE: Scene = {
   cg: null,
   place: "",
   autoCast: true,
+  talkView: "focus",
+  actorScale: 1,
   cast: {},
   npcs: {},
   presets: {},

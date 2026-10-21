@@ -77,7 +77,7 @@
 .stage__actor {
   position: absolute;
   bottom: -2%;
-  height: 94%;
+  height: calc(94% * var(--st-scale, 1));
   translate: -50% 0;
   display: flex;
   align-items: flex-end;
@@ -98,6 +98,37 @@
   filter: drop-shadow(3px 0 0 var(--st-outline)) drop-shadow(-3px 0 0 var(--st-outline))
     drop-shadow(0 3px 0 var(--st-outline)) drop-shadow(0 -3px 0 var(--st-outline))
     drop-shadow(0 18px 24px rgba(0, 0, 0, 0.45));
+}
+
+/* 배경이 있는 그림·정사각 얼굴·둥근 토큰 — 거대하게 세우지 않고 액자에 담는다 */
+/* 액자는 말풍선 위에 올려 둔다 (말풍선이 얼굴을 덮지 않게) */
+.stage__actor--card {
+  bottom: 20%;
+  height: min(calc(62% * var(--st-scale, 1)), 78%);
+}
+.stage__card {
+  height: 100%;
+  overflow: hidden;
+  border-radius: 8px;
+  border: 3px solid var(--st-outline);
+  background: var(--st-bar);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.6),
+    0 18px 36px rgba(0, 0, 0, 0.55);
+}
+.stage__actor .stage__card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 18%;
+  filter: none;
+}
+[data-skin="slant"] .stage__card {
+  border-radius: 0;
+  transform: skewX(-4deg);
+}
+[data-skin="arcane"] .stage__card {
+  border-radius: 999px 999px 12px 12px;
 }
 
 /* 말하는 사람은 앞으로, 나머지는 어둡게 뒤로 */
@@ -140,6 +171,55 @@
   z-index: 4;
   pointer-events: none;
 }
+/* GM 만 보이는 무대 조절 (보기 전환 · 인물 크기) */
+.stage__controls {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  pointer-events: auto;
+  font-size: 11px;
+  opacity: 0.55;
+  transition: opacity 0.2s ease;
+}
+.stage__controls:hover,
+.stage__controls:focus-within {
+  opacity: 1;
+}
+.stage__seg {
+  display: flex;
+  border: 1px solid color-mix(in srgb, var(--st-outline) 45%, transparent);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.stage__seg button {
+  padding: 3px 9px;
+  color: color-mix(in srgb, #f4f1e8 70%, transparent);
+  background: rgba(0, 0, 0, 0.35);
+  white-space: nowrap;
+}
+.stage__seg button.on {
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 700;
+}
+.stage__scale {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: color-mix(in srgb, #f4f1e8 75%, transparent);
+  white-space: nowrap;
+}
+.stage__scale input {
+  width: 90px;
+  accent-color: var(--accent);
+}
+.stage__scale b {
+  width: 3.2em;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 .stage__phase {
   font-family: var(--font-latin), serif;
   font-size: clamp(10px, 1.6cqh, 13px);
@@ -208,6 +288,34 @@
 }
 .stage__bubble--solo {
   bottom: calc(var(--st-bottom) + 3%);
+}
+
+/* 배경 모드: 말풍선 왼쪽에 말하는 사람 얼굴 */
+.stage__bubble--face {
+  --face: clamp(68px, 17cqh, 128px);
+  padding-left: calc(var(--face) * 0.62 + 24px);
+  margin-left: calc(var(--face) * 0.2);
+}
+.stage__face {
+  position: absolute;
+  left: calc(var(--face) * -0.38);
+  bottom: 50%;
+  translate: 0 50%;
+  width: var(--face);
+  height: var(--face);
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: 50% 15%;
+  border: 3px solid var(--st-outline);
+  background: var(--st-bar);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+  z-index: 1;
+  animation: stage-pop 0.25s ease-out both;
+}
+[data-skin="slant"] .stage__face {
+  border-radius: 0;
+  clip-path: polygon(8% 0, 100% 4%, 92% 100%, 0 96%);
+  border: none;
 }
 /* 비스듬한 말풍선 — 모양은 뒤판(::before)에만 깎는다. 말풍선 자체를 깎으면 위로 튀어나온 이름표가 잘린다 */
 [data-skin="slant"] .stage__bubble {
