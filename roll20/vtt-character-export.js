@@ -17,14 +17,15 @@ var VttCharacterExport =
   (function () {
     "use strict";
 
-    var VERSION = "0.1.0";
+    var VERSION = "0.1.1";
 
     function esc(s) {
       return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     }
 
-    function whisper(who, text) {
-      sendChat("VTT 내보내기", '/w "' + who.replace(/ \(GM\)$/, "") + '" ' + text, null, { noarchive: true });
+    // 표시 이름으로 귓속말하면 이름에 따라 안 갈 때가 있어서, GM 전체에게 보낸다
+    function whisper(_who, text) {
+      sendChat("VTT 내보내기", "/w gm " + text);
     }
 
     // repeating_skills_-MXgb6hT9ZsK3n1fQ0aB_name → { section: "skills", row: "-MXgb6hT9ZsK3n1fQ0aB", field: "name" }
@@ -94,9 +95,20 @@ var VttCharacterExport =
 
     function handle(msg) {
       if (msg.type !== "api" || msg.content.indexOf("!vtt-export") !== 0) return;
+      log("VttCharacterExport: " + msg.content + " (selected " + (msg.selected ? msg.selected.length : 0) + ")");
+      try {
+        run(msg);
+      } catch (e) {
+        log("VttCharacterExport error: " + (e && e.stack ? e.stack : e));
+        whisper(msg.who, "내보내기 중 오류: " + esc(e && e.message ? e.message : e));
+      }
+    }
+
+    function run(msg) {
       if (!playerIsGM(msg.playerid)) return whisper(msg.who, "GM만 쓸 수 있어요.");
 
       var arg = msg.content.replace(/^!vtt-export\s*/, "").trim();
+      if (arg === "ping") return whisper(msg.who, "VTT 내보내기 " + VERSION + " 작동 중이에요.");
       var chars = [];
       if (arg) {
         chars = findObjs({ _type: "character", name: arg });
@@ -116,6 +128,7 @@ var VttCharacterExport =
     on("ready", function () {
       on("chat:message", handle);
       log("VttCharacterExport " + VERSION + " ready");
+      whisper("", "VTT 내보내기 " + VERSION + " 준비됨 — 토큰을 고르고 <code>!vtt-export</code>");
     });
 
     return { collect: collect };
