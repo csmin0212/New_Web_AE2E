@@ -1,8 +1,9 @@
 "use client";
 
 import type { RollResult } from "@/lib/dice";
+import type { InlineResult, Segment } from "@/lib/inline";
 import { splitTitle } from "@/lib/stage";
-import type { ChatMessage } from "@/lib/types";
+import type { ChatCard, ChatMessage } from "@/lib/types";
 
 export function ChatMessageView({
   message: m,
@@ -89,6 +90,8 @@ function Body({ m }: { m: ChatMessage }) {
       );
     case "roll":
       return m.roll ? <RollView r={m.roll} /> : null;
+    case "card":
+      return m.card ? <CardView card={m.card} /> : null;
     case "system":
       return <p className="text-center text-xs text-muted">{m.text}</p>;
     default:
@@ -141,5 +144,88 @@ export function RollView({ r }: { r: RollResult }) {
         {fumble && <span className="ml-1 rounded bg-fumble px-1.5 text-xs font-bold text-white">펌블</span>}
       </div>
     </div>
+  );
+}
+
+// 스킬·아이템 카드 — Roll20 스킬 템플릿처럼
+export function CardView({ card }: { card: ChatCard }) {
+  return (
+    <div className="mt-1 max-w-md overflow-hidden rounded-md border border-line bg-panel">
+      <div className="border-b border-line bg-black/30 px-3 py-1.5">
+        <div className="text-[10px] tracking-widest text-muted">{card.tag === "skill" ? "SKILL" : card.tag === "item" ? "ITEM" : "ATTACK"}</div>
+        <SkillName name={card.title} color={card.color} glow={card.glow} className="text-[15px]" />
+      </div>
+      {card.meta.length > 0 && (
+        <div className="flex flex-wrap gap-1 border-b border-line/60 px-3 py-1.5">
+          {card.meta.map((m, i) => (
+            <span key={i} className="rounded border border-line bg-panel-2 px-1.5 text-[11px] text-muted">
+              {m}
+            </span>
+          ))}
+        </div>
+      )}
+      {card.body.length > 0 && <RichText segments={card.body} className="px-3 py-2 text-[13px] leading-relaxed" />}
+      {card.extra && (
+        <div className="border-t border-line/60 px-3 py-1.5 text-xs">
+          <span className="mr-2 text-muted">{card.extra.label}</span>
+          <RichText segments={[card.extra.result]} className="inline" />
+        </div>
+      )}
+      {card.note && <div className="border-t border-line/60 bg-accent/10 px-3 py-1 text-xs text-accent">{card.note}</div>}
+    </div>
+  );
+}
+
+// 시트에서 꾸민 스킬 이름 (글자색 + 빛 번짐)
+export function SkillName({ name, color, glow, className = "" }: { name: string; color?: string; glow?: string; className?: string }) {
+  return (
+    <span
+      className={`font-display font-bold ${className}`}
+      style={{
+        color: color ?? "var(--text)",
+        textShadow: glow ? `0 0 2px ${glow}, 0 0 3px ${glow}, 0 0 10px ${glow}` : undefined,
+      }}
+    >
+      {name}
+    </span>
+  );
+}
+
+// **굵게**, 줄바꿈, 굴린 값(강조)을 그린다
+export function RichText({ segments, className = "" }: { segments: Segment[]; className?: string }) {
+  return (
+    <div className={`whitespace-pre-wrap ${className}`}>
+      {segments.map((s, i) => (typeof s === "string" ? <Bold key={i} text={s} /> : <RollChip key={i} r={s} />))}
+    </div>
+  );
+}
+
+function Bold({ text }: { text: string }) {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return (
+    <>
+      {parts.map((p, i) =>
+        p.startsWith("**") && p.endsWith("**") ? (
+          <strong key={i} className="text-text">
+            {p.slice(2, -2)}
+          </strong>
+        ) : (
+          <span key={i}>{p}</span>
+        ),
+      )}
+    </>
+  );
+}
+
+function RollChip({ r }: { r: InlineResult }) {
+  const detail = r.dice.map((d) => `[${d.results.join(",")}]`).join(" ");
+  return (
+    <span
+      className="mx-0.5 inline-flex items-baseline gap-1 rounded border border-accent/60 bg-accent/15 px-1.5 font-bold text-accent"
+      title={`${r.expr} → ${detail || "주사위 없음"}`}
+    >
+      {r.total}
+      <span className="text-[10px] font-normal text-muted">{r.expr}</span>
+    </span>
   );
 }

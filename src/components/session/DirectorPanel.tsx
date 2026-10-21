@@ -15,6 +15,7 @@ import {
   updateToken,
   type TokenSide,
 } from "@/lib/scene";
+import { derive } from "@/lib/ar/derive";
 import { splitTitle } from "@/lib/stage";
 import { THEMES } from "@/lib/themes";
 import { SheetImport } from "../SheetImport";
@@ -376,11 +377,13 @@ function BattleSection() {
             const c = characters.find((x) => x.id === pick);
             if (!c) return;
             const side: TokenSide = c.kind === "pc" ? "pc" : "enemy";
+            // 툴 안 시트가 있으면 계산된 행동치, 구글 시트면 【민첩】+【감지】
             const agi = c.sheet.stats.find((s) => s.key === "AGI")?.mod ?? 0;
             const per = c.sheet.stats.find((s) => s.key === "PER")?.mod ?? 0;
+            const init = c.ar ? derive(c.ar).action : agi + per;
             addToken(
               cid,
-              { name: c.sheet.name, charId: c.id, ownerUid: c.ownerUid ?? undefined, side, init: agi + per, image: c.portrait },
+              { name: c.sheet.name, charId: c.id, ownerUid: c.ownerUid ?? undefined, side, init, image: c.portrait },
               freeCell(side),
             );
             setPick("");
@@ -453,7 +456,7 @@ function NumField({ label, value, min, max, onSave }: { label: string; value: nu
 function ImportSection() {
   const { cid, user, members, characters } = useSession();
   return (
-    <Section title="시트 불러오기">
+    <Section title="캐릭터 추가 (시트 · Roll20 · 에너미)">
       <SheetImport cid={cid} user={user} members={members} nextOrder={characters.length} onDone={() => {}} />
     </Section>
   );

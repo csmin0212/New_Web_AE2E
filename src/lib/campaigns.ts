@@ -13,6 +13,8 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { db, rtdb } from "./firebase";
+import { derive } from "./ar/derive";
+import type { ArSheet } from "./ar/types";
 import type { ParsedSheet } from "./sheet/parse";
 import type { Campaign, Character, Gauge, Member } from "./types";
 
@@ -120,6 +122,76 @@ export async function resyncCharacter(cid: string, c: Character, sheet: ParsedSh
     mp: gauge(sheet.mp, c.mp),
     fate: gauge(sheet.fate, c.fate),
     syncedAt: Date.now(),
+  });
+}
+
+// ── 툴 안 시트 (Roll20·ARON·직접 입력) ─────────────────────────
+
+// ar 시트에서 기존 화면(파티 칩·토큰 등)이 쓰는 요약을 만든다
+export function summarize(ar: ArSheet, gauges: { hp: Gauge; mp: Gauge; fate: Gauge }): ParsedSheet {
+  const d = derive(ar);
+  const p = ar.profile;
+  return {
+    sheetId: "",
+    tab: "",
+    name: p.name,
+    charClass: [p.mainClass, p.supportClass].filter(Boolean).join(" / ") || p.category || null,
+    race: p.race ?? null,
+    attribute: p.element ?? null,
+    level: p.level ?? null,
+    hp: gauges.hp.max,
+    mp: gauges.mp.max,
+    fate: gauges.fate.max,
+    gold: ar.money != null ? `${ar.money}G` : null,
+    stats: d.stats.map((s) => ({ key: s.key, label: s.label, value: ar.stats.find((x) => x.key === s.key)?.base ?? null, mod: s.check.mod })),
+    skills: ar.skills.map((s) => ({ name: s.name, sl: s.sl })),
+  };
+}
+
+// Firestore 는 undefined 를 받지 않는다
+function plain<T>(v: T): T {
+  return JSON.parse(JSON.stringify(v)) as T;
+}
+
+export async function addArCharacter(
+  cid: string,
+  opts: {
+    ar: ArSheet;
+    hp: Gauge;
+    mp: Gauge;
+    fate: Gauge;
+    portrait?: string;
+    kind: Character["kind"];
+    ownerUid: string | null;
+    order: number;
+  },
+): Promise<string> {
+  const ref_ = doc(collection(db, "campaigns", cid, "characters"));
+  const character: Omit<Character, "id"> = {
+    kind: opts.kind,
+    ownerUid: opts.ownerUid,
+    sheet: summarize(opts.ar, opts),
+    ar: opts.ar,
+    hp: opts.hp,
+    mp: opts.mp,
+    fate: opts.fate,
+    portrait: opts.portrait,
+    syncedAt: Date.now(),
+    order: opts.order,
+  };
+  await setDoc(ref_, plain(character));
+  return ref_.id;
+}
+
+export async function updateAr(cid: string, c: Character, ar: ArSheet) {
+  // 요약(sheet)은 GM 만 바꿀 수 있어서, 주인은 ar 만 저장한다
+  await updateDoc(doc(db, "campaigns", cid, "characters", c.id), { ar: plain(ar) });
+}
+
+export async function updateArWithSummary(cid: string, c: Character, ar: ArSheet) {
+  await updateDoc(doc(db, "campaigns", cid, "characters", c.id), {
+    ar: plain(ar),
+    sheet: plain(summarize(ar, c)),
   });
 }
 

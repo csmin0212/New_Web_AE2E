@@ -75,13 +75,15 @@ export function CharacterCard({
           <ArtFields c={c} onSave={(patch) => act(() => updateCharacter(cid, c.id, patch))} busy={busy} />
           {isGM && (
             <>
-              <button
-                className="btn w-full"
-                disabled={busy}
-                onClick={() => act(async () => resyncCharacter(cid, c, await fetchSheet(user, s.sheetId, s.tab)))}
-              >
-                <span>시트 다시 불러오기</span>
-              </button>
+              {s.sheetId && (
+                <button
+                  className="btn w-full"
+                  disabled={busy}
+                  onClick={() => act(async () => resyncCharacter(cid, c, await fetchSheet(user, s.sheetId, s.tab)))}
+                >
+                  <span>시트 다시 불러오기</span>
+                </button>
+              )}
               {c.kind === "pc" && (
                 <select
                   className="input"
@@ -195,7 +197,7 @@ export function CharacterCard({
   );
 }
 
-function GaugeRow({
+export function GaugeRow({
   label,
   color,
   value,

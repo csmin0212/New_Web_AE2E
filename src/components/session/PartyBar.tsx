@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Character, Gauge } from "@/lib/types";
+import { ArSheetView } from "../ArSheetView";
 import { CharacterCard } from "../CharacterCard";
 import { ResizeHandle, useResizable } from "./Resizable";
 import { useSession } from "./SessionContext";
@@ -93,7 +94,11 @@ function SheetDrawer({ character, onClose }: { character: Character; onClose: ()
         </button>
       </div>
       <div className="max-h-[calc(100dvh-14rem)] overflow-y-auto rounded-lg shadow-2xl">
-        <CharacterCard cid={cid} user={user} character={character} isGM={isGM} members={members} />
+        {character.ar ? (
+          <ArSheetView character={character} />
+        ) : (
+          <CharacterCard cid={cid} user={user} character={character} isGM={isGM} members={members} />
+        )}
       </div>
     </div>
   );
