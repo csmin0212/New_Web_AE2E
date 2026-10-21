@@ -1,6 +1,7 @@
 "use client";
 
 import type { RollResult } from "@/lib/dice";
+import { splitTitle } from "@/lib/stage";
 import type { ChatMessage } from "@/lib/types";
 
 export function ChatMessageView({
@@ -8,34 +9,60 @@ export function ChatMessageView({
   grouped,
   canDelete,
   onDelete,
+  onShowOnStage,
 }: {
   message: ChatMessage;
   grouped: boolean;
   canDelete: boolean;
   onDelete: () => void;
+  onShowOnStage?: () => void;
 }) {
   const isPrivate = !!m.to || !!m.secret;
   const time = new Date(m.ts).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
+  const { title, name } = splitTitle(m.speaker.name);
+  const face = m.speaker.avatar ?? m.speaker.image;
+  const showHead = !grouped && m.kind !== "ooc" && m.kind !== "system";
 
   return (
     <div
-      className={`group relative rounded px-2 ${grouped ? "py-0.5" : "mt-2 pt-1.5 pb-0.5"} ${
-        isPrivate ? "border-l-2 border-fumble bg-fumble/10" : "hover:bg-panel/60"
+      className={`group relative flex gap-2 rounded px-2 ${grouped ? "py-0.5" : "mt-2 pt-1.5 pb-0.5"} ${
+        isPrivate ? "border-l-2 border-fumble bg-fumble/10" : "hover:bg-white/[.03]"
       }`}
     >
-      {!grouped && m.kind !== "ooc" && (
-        <div className="flex items-baseline gap-2">
-          <span className="font-bold text-accent">{m.speaker.name}</span>
-          {m.to && <span className="text-xs text-fumble">→ {m.to.map((t) => t.name).join(", ")} (귓속말)</span>}
-          {m.secret && <span className="text-xs text-fumble">GM에게만</span>}
-          <span className="text-[10px] text-muted">{time}</span>
-        </div>
-      )}
-      <Body m={m} />
+      <div className="w-8 shrink-0">
+        {showHead &&
+          (face ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={face} alt="" className="h-8 w-8 rounded-full border border-line object-cover object-top" />
+          ) : (
+            <div className="font-display grid h-8 w-8 place-items-center rounded-full border border-line bg-panel-2 text-xs text-accent">
+              {m.speaker.narrator ? "❖" : name.slice(0, 1)}
+            </div>
+          ))}
+      </div>
+      <div className="min-w-0 flex-1">
+        {showHead && (
+          <div className="flex flex-wrap items-baseline gap-x-2">
+            {title && <span className="text-[11px] text-muted">{title}</span>}
+            <span className="font-display font-bold" style={{ color: m.speaker.color ?? "var(--accent)" }}>
+              {m.speaker.narrator ? "GM" : name}
+            </span>
+            {m.to && <span className="text-xs text-fumble">→ {m.to.map((t) => t.name).join(", ")} (귓속말)</span>}
+            {m.secret && <span className="text-xs text-fumble">GM에게만</span>}
+            <span className="text-[10px] text-muted">{time}</span>
+          </div>
+        )}
+        <Body m={m} />
+        {m.kind === "image" && onShowOnStage && (
+          <button className="btn mt-1 py-0.5 text-xs" onClick={onShowOnStage}>
+            <span>무대에 띄우기</span>
+          </button>
+        )}
+      </div>
       {canDelete && (
         <button
           onClick={onDelete}
-          className="absolute top-1 right-1 hidden rounded px-1 text-xs text-muted hover:text-hp group-hover:block"
+          className="absolute top-1 right-1 hidden rounded px-1 text-xs text-muted group-hover:block hover:text-hp"
           aria-label="메시지 지우기"
         >
           ✕
@@ -48,34 +75,34 @@ export function ChatMessageView({
 function Body({ m }: { m: ChatMessage }) {
   switch (m.kind) {
     case "action":
-      return <p className="whitespace-pre-wrap text-[15px] text-muted italic">{m.text}</p>;
+      return <p className="text-[14px] whitespace-pre-wrap text-muted italic">{m.text}</p>;
     case "ooc":
       return (
         <p className="text-xs text-muted">
-          ({m.speaker.name}: {m.text})
+          ({splitTitle(m.speaker.name).name}: {m.text})
         </p>
       );
     case "image":
       return (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={m.text} alt="" className="mt-1 max-h-80 max-w-full rounded border border-line" loading="lazy" />
+        <img src={m.text} alt="" className="mt-1 max-h-60 max-w-full rounded border border-line" loading="lazy" />
       );
     case "roll":
       return m.roll ? <RollView r={m.roll} /> : null;
     case "system":
       return <p className="text-center text-xs text-muted">{m.text}</p>;
     default:
-      return <p className="text-[15px] whitespace-pre-wrap">{m.text}</p>;
+      return <p className={`text-[14px] whitespace-pre-wrap ${m.speaker.narrator ? "font-display text-text/90" : ""}`}>{m.text}</p>;
   }
 }
 
-function RollView({ r }: { r: RollResult }) {
+export function RollView({ r }: { r: RollResult }) {
   const crit = r.check?.critical;
   const fumble = r.check?.fumble;
   return (
     <div
-      className={`mt-1 inline-block min-w-56 rounded-md border px-3 py-2 ${
-        crit ? "border-crit bg-crit/10" : fumble ? "border-fumble bg-fumble/10" : "border-line bg-panel"
+      className={`mt-1 inline-block min-w-52 rounded-md border px-3 py-2 ${
+        crit ? "border-crit bg-[#2a2108]" : fumble ? "border-fumble bg-[#1d1324]" : "border-line bg-panel"
       }`}
     >
       <div className="flex items-center gap-2 text-xs text-muted">
@@ -109,9 +136,9 @@ function RollView({ r }: { r: RollResult }) {
           </span>
         )}
         <span className="mx-1 text-muted">=</span>
-        <span className={`text-xl font-bold ${crit ? "text-crit" : fumble ? "text-fumble" : ""}`}>{r.total}</span>
-        {crit && <span className="ml-1 rounded bg-crit px-1.5 text-xs font-bold text-accent-ink">크리티컬!</span>}
-        {fumble && <span className="ml-1 rounded bg-fumble px-1.5 text-xs font-bold">펌블</span>}
+        <span className={`text-xl font-bold ${crit ? "text-crit" : fumble ? "text-fumble" : "text-text"}`}>{r.total}</span>
+        {crit && <span className="ml-1 rounded bg-crit px-1.5 text-xs font-bold text-black">크리티컬!</span>}
+        {fumble && <span className="ml-1 rounded bg-fumble px-1.5 text-xs font-bold text-white">펌블</span>}
       </div>
     </div>
   );

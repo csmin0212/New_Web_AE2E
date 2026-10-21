@@ -48,55 +48,66 @@ export function CharacterCard({
   }
 
   return (
-    <article className="rounded-lg border border-line bg-panel p-3">
+    <article className="panel p-3">
       <header className="flex items-start gap-2">
+        {(c.portrait ?? c.standing) && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={c.portrait ?? c.standing} alt="" className="h-11 w-11 shrink-0 rounded-full border border-line object-cover object-top" />
+        )}
         <div className="min-w-0 flex-1">
-          <h3 className="truncate font-bold">{s.name}</h3>
+          <h3 className="font-display truncate text-lg font-bold" style={{ color: c.color }}>
+            {s.name}
+          </h3>
           <p className="truncate text-xs text-muted">
             {[s.level != null && `Lv.${s.level}`, s.race, s.charClass, s.attribute].filter(Boolean).join(" · ")}
             {c.kind === "pc" && <> · {owner ? owner.name : "담당 없음"}</>}
           </p>
         </div>
-        {isGM && (
+        {canEdit && (
           <button className="btn px-2 py-0.5 text-xs" onClick={() => setMenu((v) => !v)} aria-label="캐릭터 메뉴">
-            ⋯
+            <span>⋯</span>
           </button>
         )}
       </header>
 
-      {isGM && menu && (
+      {canEdit && menu && (
         <div className="mt-2 space-y-2 rounded-md border border-line bg-panel-2 p-2 text-xs">
-          <button
-            className="btn w-full"
-            disabled={busy}
-            onClick={() => act(async () => resyncCharacter(cid, c, await fetchSheet(user, s.sheetId, s.tab)))}
-          >
-            시트 다시 불러오기
-          </button>
-          {c.kind === "pc" && (
-            <select
-              className="input"
-              value={c.ownerUid ?? ""}
-              onChange={(e) => act(() => updateCharacter(cid, c.id, { ownerUid: e.target.value || null }))}
-            >
-              <option value="">담당 플레이어 없음</option>
-              {members
-                .filter((m) => m.role === "player")
-                .map((m) => (
-                  <option key={m.uid} value={m.uid}>
-                    {m.name}
-                  </option>
-                ))}
-            </select>
+          <ArtFields c={c} onSave={(patch) => act(() => updateCharacter(cid, c.id, patch))} busy={busy} />
+          {isGM && (
+            <>
+              <button
+                className="btn w-full"
+                disabled={busy}
+                onClick={() => act(async () => resyncCharacter(cid, c, await fetchSheet(user, s.sheetId, s.tab)))}
+              >
+                <span>시트 다시 불러오기</span>
+              </button>
+              {c.kind === "pc" && (
+                <select
+                  className="input"
+                  value={c.ownerUid ?? ""}
+                  onChange={(e) => act(() => updateCharacter(cid, c.id, { ownerUid: e.target.value || null }))}
+                >
+                  <option value="">담당 플레이어 없음</option>
+                  {members
+                    .filter((m) => m.role === "player")
+                    .map((m) => (
+                      <option key={m.uid} value={m.uid}>
+                        {m.name}
+                      </option>
+                    ))}
+                </select>
+              )}
+              <button
+                className="btn w-full text-hp"
+                disabled={busy}
+                onClick={() => confirm(`${s.name}을(를) 목록에서 지울까요? (구글 시트는 그대로예요)`) && act(() => removeCharacter(cid, c.id))}
+              >
+                <span>목록에서 지우기</span>
+              </button>
+              <p className="text-muted">마지막 동기화: {new Date(c.syncedAt).toLocaleString("ko-KR")}</p>
+            </>
           )}
-          <button
-            className="btn w-full text-hp"
-            disabled={busy}
-            onClick={() => confirm(`${s.name}을(를) 목록에서 지울까요? (구글 시트는 그대로예요)`) && act(() => removeCharacter(cid, c.id))}
-          >
-            목록에서 지우기
-          </button>
-          <p className="text-muted">마지막 동기화: {new Date(c.syncedAt).toLocaleString("ko-KR")}</p>
         </div>
       )}
 
@@ -150,7 +161,14 @@ export function CharacterCard({
               if (fate > 0) await setGauge(cid, c.id, "fate", { ...c.fate, cur: c.fate.cur - fate });
               await sendMessage(
                 cid,
-                { uid: user.uid, speaker: { name: s.name, uid: user.uid, charId: c.id }, kind: "roll", text: "", roll: result, secret: secret || undefined },
+                {
+                  uid: user.uid,
+                  speaker: { name: s.name, uid: user.uid, charId: c.id, image: c.standing, avatar: c.portrait, color: c.color },
+                  kind: "roll",
+                  text: "",
+                  roll: result,
+                  secret: secret || undefined,
+                },
                 secret ? [user.uid] : undefined,
               );
               setStatIdx(null);
@@ -304,5 +322,45 @@ function CheckPanel({
         굴리기
       </button>
     </div>
+  );
+}
+
+// 얼굴·스탠딩·이름 색 — 이미지 주소를 넣는다 (public/ 아래 경로나 https 주소)
+function ArtFields({
+  c,
+  onSave,
+  busy,
+}: {
+  c: Character;
+  onSave: (patch: Partial<Pick<Character, "portrait" | "standing" | "color">>) => void;
+  busy: boolean;
+}) {
+  const [portrait, setPortrait] = useState(c.portrait ?? "");
+  const [standing, setStanding] = useState(c.standing ?? "");
+  const [color, setColor] = useState(c.color ?? "#c9a45c");
+  return (
+    <form
+      className="space-y-1.5"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSave({ portrait: portrait.trim() || undefined, standing: standing.trim() || undefined, color });
+      }}
+    >
+      <label className="block">
+        <span className="text-muted">얼굴 아이콘</span>
+        <input className="input mt-0.5" placeholder="/local/teresa.jpg 또는 https://…" value={portrait} onChange={(e) => setPortrait(e.target.value)} />
+      </label>
+      <label className="block">
+        <span className="text-muted">스탠딩 (배경 투명 PNG)</span>
+        <input className="input mt-0.5" placeholder="/local/elin-standing.png" value={standing} onChange={(e) => setStanding(e.target.value)} />
+      </label>
+      <label className="flex items-center gap-2">
+        <span className="text-muted">이름 색</span>
+        <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-6 w-10 cursor-pointer bg-transparent" />
+        <button className="btn-primary ml-auto py-1" disabled={busy}>
+          <span>그림 저장</span>
+        </button>
+      </label>
+    </form>
   );
 }

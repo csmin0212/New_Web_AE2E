@@ -48,10 +48,11 @@ service cloud.firestore {
       match /characters/{chid} {
         allow read: if isMember(cid);
         allow create, delete: if isGM(cid);
-        // 플레이어는 자기 캐릭터의 HP·MP·페이트만 바꿀 수 있다
+        // 플레이어는 자기 캐릭터의 HP·MP·페이트와 그림·색만 바꿀 수 있다
         allow update: if isGM(cid)
           || (isMember(cid) && resource.data.ownerUid == request.auth.uid
-              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['hp', 'mp', 'fate']));
+              && request.resource.data.diff(resource.data).affectedKeys()
+                   .hasOnly(['hp', 'mp', 'fate', 'portrait', 'standing', 'color']));
       }
     }
   }

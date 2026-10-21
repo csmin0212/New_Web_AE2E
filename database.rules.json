@@ -19,6 +19,30 @@
         }
       }
     },
+    "scene": {
+      "$cid": {
+        ".read": "auth != null && root.child('members').child($cid).child(auth.uid).exists()",
+        ".write": "auth != null && root.child('gm').child($cid).val() === auth.uid"
+      }
+    },
+    "battle": {
+      "$cid": {
+        ".read": "auth != null && root.child('members').child($cid).child(auth.uid).exists()",
+        "meta": {
+          ".write": "auth != null && root.child('gm').child($cid).val() === auth.uid"
+        },
+        "tokens": {
+          ".write": "auth != null && root.child('gm').child($cid).val() === auth.uid"
+        },
+        "pos": {
+          ".write": "auth != null && root.child('gm').child($cid).val() === auth.uid",
+          "$tid": {
+            ".write": "auth != null && root.child('battle').child($cid).child('tokens').child($tid).child('ownerUid').val() === auth.uid",
+            ".validate": "!newData.exists() || (newData.hasChildren(['x', 'y']) && newData.child('x').isNumber() && newData.child('y').isNumber())"
+          }
+        }
+      }
+    },
     "chat": {
       "$cid": {
         "public": {

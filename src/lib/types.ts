@@ -32,12 +32,23 @@ export type Character = {
   hp: Gauge;
   mp: Gauge;
   fate: Gauge;
-  portrait?: string;
+  portrait?: string; // 얼굴 아이콘 (정사각형)
+  standing?: string; // 스탠딩 일러스트 (배경 투명 PNG 권장)
+  color?: string; // 이름표 강조색
   syncedAt: number;
   order: number;
 };
 
-export type Speaker = { name: string; uid: string; charId?: string };
+// 보낼 때의 화자 정보를 메시지에 같이 담는다 (나중에 이미지를 바꿔도 지난 로그는 그대로)
+export type Speaker = {
+  name: string;
+  uid: string;
+  charId?: string;
+  image?: string; // 스탠딩
+  avatar?: string; // 얼굴 아이콘
+  color?: string;
+  narrator?: boolean; // GM 서술 (무대 아래 띠에 지문으로)
+};
 
 export type MessageKind = "say" | "action" | "ooc" | "roll" | "system" | "image";
 

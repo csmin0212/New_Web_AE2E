@@ -45,3 +45,6 @@ next-env.d.ts
 
 # firebase 에뮬레이터 로그
 *-debug.log
+
+# 개인 에셋·데모 이미지 (커밋 안 함)
+/public/local/

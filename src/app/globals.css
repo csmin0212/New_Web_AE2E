@@ -1,19 +1,28 @@
 @import "tailwindcss";
 
+/* 기본값 = 고서·금박 테마. 세션 화면에서는 ThemeRoot 가 themes.ts 값으로 덮어쓴다. */
 :root {
-  --bg: #15120f;
-  --panel: #1e1a16;
-  --panel-2: #26211c;
-  --line: #3a322a;
-  --text: #ece4d8;
-  --muted: #9a8f80;
-  --accent: #c8a020;
-  --accent-ink: #1b1608;
+  --bg: #120e0a;
+  --panel: #1d1610;
+  --panel-2: #271e15;
+  --line: #4a3a26;
+  --text: #efe4cc;
+  --muted: #a8977a;
+  --accent: #c9a45c;
+  --accent-ink: #1a1206;
+  --accent-2: #8c2f22;
+  --plate-bg: linear-gradient(180deg, #3a2a18, #22180e);
+  --plate-text: #f3e3b8;
+  --dialog-bg: linear-gradient(180deg, rgba(26, 19, 12, 0.92), rgba(14, 10, 6, 0.96));
+  --dialog-line: #c9a45c;
+  --font-display: var(--font-serif-kr);
+  --font-latin: var(--font-cinzel);
+  --pattern: none;
   --hp: #c0443a;
   --mp: #3a6fc0;
   --fate: #b98a1e;
   --crit: #e8c34a;
-  --fumble: #8a5a9a;
+  --fumble: #9a6ab0;
 }
 
 @theme inline {
@@ -25,6 +34,7 @@
   --color-muted: var(--muted);
   --color-accent: var(--accent);
   --color-accent-ink: var(--accent-ink);
+  --color-accent-2: var(--accent-2);
   --color-hp: var(--hp);
   --color-mp: var(--mp);
   --color-fate: var(--fate);
@@ -43,12 +53,254 @@ body {
   color: var(--text);
 }
 
+.theme-root {
+  background: var(--pattern), var(--bg);
+  color: var(--text);
+}
+
+/* ── 기본 부품 ─────────────────────────────────────────── */
+
 @utility btn {
-  @apply inline-flex items-center justify-center gap-1 rounded-md border border-line bg-panel-2 px-3 py-1.5 text-sm transition hover:border-accent/60 disabled:pointer-events-none disabled:opacity-40;
+  @apply inline-flex items-center justify-center gap-1 rounded-md border border-line bg-panel-2 px-3 py-1.5 text-sm transition hover:border-accent/70 disabled:pointer-events-none disabled:opacity-40;
 }
 @utility btn-primary {
   @apply btn border-accent bg-accent font-semibold text-accent-ink hover:brightness-110;
 }
 @utility input {
-  @apply w-full rounded-md border border-line bg-bg px-3 py-1.5 text-sm outline-none focus:border-accent/70;
+  @apply w-full rounded-md border border-line bg-bg/80 px-3 py-1.5 text-sm outline-none focus:border-accent/70;
+}
+@utility font-display {
+  font-family: var(--font-display), var(--font-noto), serif;
+}
+@utility font-latin {
+  font-family: var(--font-latin), var(--font-display), serif;
+  letter-spacing: 0.12em;
+}
+
+/* 패널: 테마 장식은 data-skin 으로 갈린다 */
+.panel {
+  position: relative;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+[data-skin="ornate"] .panel {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
+  box-shadow:
+    inset 0 0 0 3px var(--panel),
+    inset 0 0 0 4px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+[data-skin="ornate"] .panel::before,
+[data-skin="ornate"] .panel::after {
+  content: "";
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  background: var(--accent);
+  transform: rotate(45deg);
+  top: -5px;
+  pointer-events: none;
+}
+[data-skin="ornate"] .panel::before {
+  left: 14px;
+}
+[data-skin="ornate"] .panel::after {
+  right: 14px;
+}
+[data-skin="harlequin"] .panel {
+  border-radius: 2px;
+  border-color: #3b3240;
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+[data-skin="slant"] .panel {
+  border-radius: 0;
+  border: 2px solid #fff;
+  box-shadow: 5px 5px 0 var(--accent);
+}
+[data-skin="arcane"] .panel {
+  border-radius: 10px;
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  box-shadow:
+    0 0 0 1px rgba(143, 184, 255, 0.06),
+    0 0 18px rgba(143, 184, 255, 0.08);
+}
+
+/* 이름표 */
+.plate {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  background: var(--plate-bg);
+  color: var(--plate-text);
+  font-family: var(--font-display), serif;
+  font-weight: 700;
+  padding: 0.3em 1.1em;
+  border: 1px solid color-mix(in srgb, var(--accent) 60%, transparent);
+}
+[data-skin="ornate"] .plate {
+  border-radius: 2px;
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 3px color-mix(in srgb, var(--accent) 50%, transparent);
+}
+[data-skin="harlequin"] .plate {
+  border: 0;
+  border-left: 6px solid var(--accent);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+  padding-right: 1.6em;
+}
+[data-skin="slant"] .plate {
+  border: 0;
+  transform: skewX(-12deg) rotate(-2deg);
+  box-shadow: 4px 4px 0 var(--accent);
+}
+[data-skin="slant"] .plate > * {
+  transform: skewX(12deg);
+}
+[data-skin="arcane"] .plate {
+  border-radius: 999px;
+  box-shadow: 0 0 12px rgba(143, 184, 255, 0.25);
+}
+
+/* 대사창 */
+.dialog-box {
+  position: relative;
+  background: var(--dialog-bg);
+  border: 1px solid color-mix(in srgb, var(--dialog-line) 55%, transparent);
+  backdrop-filter: blur(3px);
+}
+[data-skin="ornate"] .dialog-box {
+  border-radius: 4px;
+  box-shadow:
+    inset 0 0 0 4px rgba(0, 0, 0, 0.35),
+    inset 0 0 0 5px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+[data-skin="ornate"] .dialog-box::before {
+  content: "❖";
+  position: absolute;
+  bottom: 10px;
+  right: 18px;
+  color: var(--accent);
+  font-size: 14px;
+  animation: blink 1.4s ease-in-out infinite;
+}
+[data-skin="harlequin"] .dialog-box {
+  border: 0;
+  border-top: 2px solid var(--accent);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 18px 100%, 0 calc(100% - 18px));
+}
+[data-skin="slant"] .dialog-box {
+  border: 0;
+  clip-path: polygon(0 10%, 100% 0, 97% 100%, 1.5% 100%);
+}
+[data-skin="arcane"] .dialog-box {
+  border-radius: 14px;
+  box-shadow: 0 0 30px rgba(143, 184, 255, 0.12);
+}
+
+/* 탭·버튼 장식 */
+[data-skin="slant"] .btn,
+[data-skin="slant"] .btn-primary {
+  border-radius: 0;
+  transform: skewX(-10deg);
+}
+[data-skin="slant"] .btn > *,
+[data-skin="slant"] .btn-primary > * {
+  transform: skewX(10deg);
+}
+[data-skin="harlequin"] .btn,
+[data-skin="harlequin"] .btn-primary {
+  border-radius: 2px;
+}
+[data-skin="arcane"] .btn,
+[data-skin="arcane"] .btn-primary {
+  border-radius: 999px;
+}
+
+/* ── 애니메이션 ─────────────────────────────────────────── */
+
+@keyframes blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+@keyframes sprite-enter {
+  from {
+    opacity: 0;
+    transform: translateX(var(--enter-from, 40px)) scale(0.96);
+  }
+}
+@keyframes cutin-band {
+  0% {
+    transform: translateX(-110%) skewX(-18deg);
+  }
+  18%,
+  78% {
+    transform: translateX(0) skewX(-18deg);
+  }
+  100% {
+    transform: translateX(110%) skewX(-18deg);
+  }
+}
+@keyframes cutin-text {
+  0% {
+    opacity: 0;
+    letter-spacing: 0.6em;
+  }
+  25%,
+  75% {
+    opacity: 1;
+    letter-spacing: 0.18em;
+  }
+  100% {
+    opacity: 0;
+    letter-spacing: 0.05em;
+  }
+}
+@keyframes cutin-fade {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  12%,
+  85% {
+    opacity: 1;
+  }
+}
+@keyframes dice-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.9);
+  }
+  12% {
+    opacity: 1;
+    transform: translateY(0) scale(1.03);
+  }
+  20% {
+    transform: scale(1);
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+.animate-rise-in {
+  animation: rise-in 0.35s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

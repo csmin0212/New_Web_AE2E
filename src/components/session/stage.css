@@ -1,0 +1,310 @@
+/*
+ * 대화 무대 — CVGwent 스토리 화면(갈바테인식 연출)을 세션용으로 옮김.
+ *
+ *   ┌──────── 위 검은 띠 ── 장소·페이즈, 인물 머리가 여기까지 솟는다 ────────┐
+ *   │                     장면 띠 (배경 / CG)                               │
+ *   │          [칭호 이름] 말풍선 — 말하는 인물 가슴께                        │
+ *   └──────── 아래 검은 띠 ── 인물 발치를 덮고, 지문이 나온다 ───────────────┘
+ *
+ * 색은 테마 변수(--st-*)에서 온다.
+ */
+.stage {
+  --st-top: 11%;
+  --st-bottom: 15%;
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  background: var(--st-bar);
+  color: #f4f1e8;
+  user-select: none;
+  container-type: size;
+}
+
+.stage__band {
+  position: absolute;
+  inset: var(--st-top) 0 var(--st-bottom) 0;
+  overflow: hidden;
+}
+
+.stage__bg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  animation: stage-fade 0.8s ease both;
+}
+
+/* 배경을 아직 안 정했을 때: 테마 무늬 위에 은은한 빛 */
+.stage__bg--empty {
+  background:
+    radial-gradient(ellipse at 50% 120%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 60%),
+    var(--pattern),
+    linear-gradient(180deg, var(--panel), var(--bg));
+}
+
+.stage__vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(0, 0, 0, 0.45));
+}
+
+/* CG — /img 로 올린 그림. 배경 위, 인물 아래 */
+.stage__cg {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 1;
+  animation: stage-fade 0.5s ease both;
+}
+.stage__cg img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+
+/* ─── 인물 ─── */
+.stage__actors {
+  position: absolute;
+  inset: 0 0 var(--st-bottom) 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.stage__actor {
+  position: absolute;
+  bottom: -2%;
+  height: 94%;
+  translate: -50% 0;
+  display: flex;
+  align-items: flex-end;
+  transition:
+    left 0.45s cubic-bezier(0.2, 0.8, 0.2, 1),
+    filter 0.35s ease,
+    transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.35s ease;
+  transform-origin: 50% 100%;
+  animation: stage-actor-in 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.stage__actor img {
+  height: 100%;
+  width: auto;
+  max-width: none;
+  /* 갈바테인처럼 인물 윤곽을 따라 밝은 테두리 */
+  filter: drop-shadow(3px 0 0 var(--st-outline)) drop-shadow(-3px 0 0 var(--st-outline))
+    drop-shadow(0 3px 0 var(--st-outline)) drop-shadow(0 -3px 0 var(--st-outline))
+    drop-shadow(0 18px 24px rgba(0, 0, 0, 0.45));
+}
+
+/* 말하는 사람은 앞으로, 나머지는 어둡게 뒤로 */
+.stage__actor--speaking {
+  z-index: 3;
+  transform: scale(1.04);
+}
+.stage__actor--back {
+  filter: brightness(0.55) saturate(0.85);
+  transform: scale(0.95) translateY(1.5%);
+}
+
+/* 스탠딩 그림이 없는 인물: 실루엣 */
+.stage__silhouette {
+  height: 78%;
+  aspect-ratio: 0.42;
+  border-radius: 46% 46% 6% 6% / 22% 22% 4% 4%;
+  background:
+    radial-gradient(circle at 50% 13%, color-mix(in srgb, var(--st-outline) 35%, #000) 0 11%, transparent 11.5%),
+    linear-gradient(180deg, transparent 22%, color-mix(in srgb, var(--st-outline) 22%, #000) 22%);
+  outline: 3px solid var(--st-outline);
+  outline-offset: -3px;
+  opacity: 0.9;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display), serif;
+  font-size: clamp(18px, 4cqh, 34px);
+  color: var(--st-outline);
+}
+
+/* ─── 위 검은 띠: 장소·페이즈 ─── */
+.stage__topbar {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: var(--st-top);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-inline: 22px;
+  z-index: 4;
+  pointer-events: none;
+}
+.stage__phase {
+  font-family: var(--font-latin), serif;
+  font-size: clamp(10px, 1.6cqh, 13px);
+  letter-spacing: 0.3em;
+  color: var(--st-outline);
+}
+.stage__place {
+  font-family: var(--font-display), serif;
+  font-size: clamp(14px, 2.6cqh, 20px);
+  font-weight: 700;
+  color: #f4f1e8;
+}
+
+/* ─── 아래 검은 띠와 지문 ─── */
+.stage__bottombar {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: var(--st-bottom);
+  background: var(--st-bar);
+  display: grid;
+  place-items: center;
+  padding-inline: 64px;
+  z-index: 3;
+  border-top: 1px solid color-mix(in srgb, var(--st-outline) 18%, transparent);
+}
+.stage__narration {
+  margin: 0;
+  max-width: 72ch;
+  font-size: clamp(15px, 2.6cqh, 20px);
+  line-height: 1.6;
+  text-align: center;
+  word-break: keep-all;
+  white-space: pre-wrap;
+  color: #f4f1e8;
+}
+.stage__narration--action {
+  font-style: italic;
+  color: color-mix(in srgb, #f4f1e8 78%, var(--st-outline));
+}
+.stage__narration small {
+  display: block;
+  font-style: normal;
+  font-size: 0.7em;
+  letter-spacing: 0.2em;
+  color: var(--st-tag-accent);
+  margin-bottom: 2px;
+}
+
+/* ─── 말풍선 ─── */
+.stage__bubble {
+  position: absolute;
+  bottom: calc(var(--st-bottom) + 6%);
+  translate: -50% 0;
+  min-width: min(340px, 80%);
+  max-width: min(620px, 86%);
+  padding: 22px 34px 16px;
+  border-radius: 12px;
+  background: var(--st-bubble);
+  color: var(--st-bubble-ink);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  z-index: 5;
+  pointer-events: auto;
+  cursor: pointer;
+  animation: stage-pop 0.18s ease-out both;
+  transition: left 0.35s ease;
+}
+.stage__bubble--solo {
+  bottom: calc(var(--st-bottom) + 3%);
+}
+[data-skin="slant"] .stage__bubble {
+  border-radius: 0;
+  clip-path: polygon(0 6%, 100% 0, 98% 100%, 2% 94%);
+  padding-block: 26px 20px;
+}
+[data-skin="arcane"] .stage__bubble {
+  border-radius: 18px;
+  box-shadow: 0 0 0 1px rgba(143, 184, 255, 0.4), 0 8px 30px rgba(0, 0, 0, 0.45);
+}
+[data-skin="ornate"] .stage__bubble {
+  border-radius: 6px;
+  box-shadow:
+    inset 0 0 0 3px var(--st-bubble),
+    inset 0 0 0 4px color-mix(in srgb, #8a6a2c 55%, transparent),
+    0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.stage__tag {
+  position: absolute;
+  top: -17px;
+  left: 50%;
+  translate: -50% 0;
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  padding: 5px 22px;
+  background: var(--st-tag);
+  color: #fff;
+  font-family: var(--font-display), serif;
+  font-size: 17px;
+  font-weight: 700;
+  white-space: nowrap;
+  /* 양 끝을 비스듬히 깎은 이름표 */
+  clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 10px 100%, 0 50%);
+}
+.stage__tag em {
+  font-style: normal;
+  color: var(--st-tag-accent);
+  font-size: 0.85em;
+}
+[data-skin="slant"] .stage__tag {
+  clip-path: none;
+  transform: skewX(-12deg) rotate(-3deg);
+  box-shadow: 3px 3px 0 #000;
+}
+
+.stage__text {
+  margin: 0;
+  font-size: clamp(15px, 2.7cqh, 20px);
+  line-height: 1.6;
+  text-align: center;
+  word-break: keep-all;
+  white-space: pre-wrap;
+}
+.stage__next {
+  position: absolute;
+  right: 12px;
+  bottom: 7px;
+  font-size: 12px;
+  animation: stage-bob 1s ease-in-out infinite;
+}
+
+/* ─── 굴림 카드 (장면 오른쪽 위에 잠깐) ─── */
+.stage__rolls {
+  position: absolute;
+  top: calc(var(--st-top) + 14px);
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 6;
+  pointer-events: none;
+}
+.stage__roll {
+  animation: dice-pop 5s ease both;
+}
+
+@keyframes stage-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes stage-actor-in {
+  from {
+    opacity: 0;
+    translate: -50% 5%;
+  }
+}
+@keyframes stage-pop {
+  from {
+    opacity: 0;
+    scale: 0.96;
+  }
+}
+@keyframes stage-bob {
+  50% {
+    transform: translateY(3px);
+  }
+}

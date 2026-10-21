@@ -5,6 +5,7 @@ import { ref, set } from "firebase/database";
 import {
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   setDoc,
@@ -126,8 +127,14 @@ export async function setGauge(cid: string, charId: string, key: "hp" | "mp" | "
   await updateDoc(doc(db, "campaigns", cid, "characters", charId), { [key]: value });
 }
 
-export async function updateCharacter(cid: string, charId: string, patch: Partial<Pick<Character, "ownerUid" | "kind" | "portrait">>) {
-  await updateDoc(doc(db, "campaigns", cid, "characters", charId), patch);
+export async function updateCharacter(
+  cid: string,
+  charId: string,
+  patch: Partial<Pick<Character, "ownerUid" | "kind" | "portrait" | "standing" | "color">>,
+) {
+  // 비운 칸(undefined)은 필드를 지운다 — Firestore 는 undefined 값을 받지 않는다
+  const data = Object.fromEntries(Object.entries(patch).map(([k, v]) => [k, v === undefined ? deleteField() : v]));
+  await updateDoc(doc(db, "campaigns", cid, "characters", charId), data);
 }
 
 export async function removeCharacter(cid: string, charId: string) {
