@@ -12,7 +12,7 @@ import { AuthProvider } from "@/lib/auth";
 import "./globals.css";
 
 // 테마마다 다른 글꼴을 쓴다 (themes.ts 의 --font-display / --font-latin)
-const notoSans = Noto_Sans_KR({ variable: "--font-noto", subsets: ["latin"], weight: ["400", "500", "700"] });
+const notoSans = Noto_Sans_KR({ variable: "--font-noto", subsets: ["latin"], weight: ["400", "500", "700", "900"] });
 const notoSerif = Noto_Serif_KR({ variable: "--font-serif-kr", subsets: ["latin"], weight: ["500", "700", "900"] });
 const blackHan = Black_Han_Sans({ variable: "--font-black-han", subsets: ["latin"], weight: "400" });
 const gowun = Gowun_Batang({ variable: "--font-gowun", subsets: ["latin"], weight: ["400", "700"] });

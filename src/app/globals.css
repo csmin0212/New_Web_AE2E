@@ -147,6 +147,12 @@ body {
   clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
   padding-right: 1.6em;
 }
+/* 팬텀: 이름·제목은 가장 굵게 */
+[data-skin="slant"] .font-display,
+[data-skin="slant"] .plate,
+[data-skin="slant"] .stage__tag {
+  font-weight: 900;
+}
 [data-skin="slant"] .plate {
   border: 0;
   transform: skewX(-12deg) rotate(-2deg);

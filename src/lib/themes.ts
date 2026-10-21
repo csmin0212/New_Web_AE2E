@@ -96,7 +96,7 @@ export const THEMES: Theme[] = [
       "--plate-text": "#0a0a0a",
       "--dialog-bg": "rgba(5,5,5,.94)",
       "--dialog-line": "#e3192b",
-      "--font-display": "var(--font-black-han)",
+      "--font-display": "var(--font-noto)", // Black Han Sans 는 작은 글씨에서 뭉개져서 굵은 고딕으로
       "--font-latin": "var(--font-anton)",
       "--st-bar": "#000000",
       "--st-outline": "#ffffff",

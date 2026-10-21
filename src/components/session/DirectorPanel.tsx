@@ -18,6 +18,7 @@ import {
 import { splitTitle } from "@/lib/stage";
 import { THEMES } from "@/lib/themes";
 import { SheetImport } from "../SheetImport";
+import { ResizeHandle, useResizable } from "./Resizable";
 import { useSession } from "./SessionContext";
 
 const RECENT_KEY = "trpg-vtt:recent-urls";
@@ -40,8 +41,13 @@ function pushRecent(url: string) {
 // GM 연출 패널 — 모드·페이즈·배경·출연진·NPC·전투 준비
 export function DirectorPanel({ onClose }: { onClose: () => void }) {
   const { scene, cid } = useSession();
+  const width = useResizable("director", 400, 320, 720);
   return (
-    <aside className="absolute inset-y-0 left-0 z-40 flex w-[min(400px,100%)] flex-col border-r border-line bg-panel/97 shadow-2xl backdrop-blur animate-rise-in">
+    <aside
+      className="absolute inset-y-0 left-0 z-40 flex max-w-full flex-col border-r border-line bg-panel/97 shadow-2xl backdrop-blur animate-rise-in"
+      style={{ width: width.size }}
+    >
+      <ResizeHandle side="right" label="연출 패널" {...width} />
       <header className="flex items-center border-b border-line px-4 py-3">
         <h2 className="font-display text-lg font-bold">연출</h2>
         <span className="font-latin ml-2 text-[10px] text-muted">DIRECTOR</span>

@@ -9,6 +9,7 @@ import { ChatLog } from "@/components/session/ChatLog";
 import { DirectorPanel } from "@/components/session/DirectorPanel";
 import { PartyBar } from "@/components/session/PartyBar";
 import { PhaseCutin } from "@/components/session/PhaseCutin";
+import { ResizeHandle, useResizable } from "@/components/session/Resizable";
 import { SessionProvider, useSession } from "@/components/session/SessionContext";
 import { TalkStage } from "@/components/session/TalkStage";
 import { ThemeRoot } from "@/components/session/ThemeRoot";
@@ -59,6 +60,7 @@ function SessionLayout() {
   const { scene, isGM } = useSession();
   const [director, setDirector] = useState(false);
   const [logOpen, setLogOpen] = useState(true);
+  const log = useResizable("log", 360, 260, 720);
 
   return (
     <div className="flex h-full flex-col">
@@ -69,7 +71,8 @@ function SessionLayout() {
           {isGM && director && <DirectorPanel onClose={() => setDirector(false)} />}
         </main>
         {logOpen && (
-          <aside className="hidden w-[360px] shrink-0 border-l border-line bg-panel/85 backdrop-blur md:block">
+          <aside className="relative hidden shrink-0 border-l border-line bg-panel/85 md:block" style={{ width: log.size }}>
+            <ResizeHandle side="left" label="기록" {...log} />
             <ChatLog />
           </aside>
         )}
@@ -80,7 +83,8 @@ function SessionLayout() {
           <ChatLog />
         </div>
       )}
-      <footer className="flex flex-col gap-2 border-t border-line bg-panel/90 px-3 py-2 backdrop-blur lg:flex-row lg:items-end">
+      {/* 위에 뜨는 시트 창이 무대에 가리지 않게 아래 띠를 무대보다 위 층에 둔다 (blur 는 쓰지 않음: 고정 위치 창을 이 띠 안에 가둬 버림) */}
+      <footer className="relative z-20 flex flex-col gap-2 border-t border-line bg-panel px-3 py-2 lg:flex-row lg:items-end">
         <PartyBar />
         <ChatInput />
       </footer>

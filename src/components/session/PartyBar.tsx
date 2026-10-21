@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { Character, Gauge } from "@/lib/types";
 import { CharacterCard } from "../CharacterCard";
+import { ResizeHandle, useResizable } from "./Resizable";
 import { useSession } from "./SessionContext";
 
 // 아래 왼쪽 파티 띠 — 얼굴 + HP/MP. 누르면 캐릭터 시트가 열린다
@@ -82,14 +83,16 @@ function Bar({ g, color }: { g: Gauge; color: string }) {
 
 function SheetDrawer({ character, onClose }: { character: Character; onClose: () => void }) {
   const { cid, user, isGM, members } = useSession();
+  const width = useResizable("sheet", 380, 300, 760);
   return (
-    <div className="fixed bottom-24 left-3 z-40 w-[min(380px,calc(100vw-24px))] animate-rise-in">
+    <div className="fixed bottom-28 left-3 z-40 max-w-[calc(100vw-24px)] animate-rise-in" style={{ width: width.size }}>
+      <ResizeHandle side="right" label="시트 창" {...width} />
       <div className="mb-1 flex justify-end">
         <button className="btn px-2 py-0.5 text-xs" onClick={onClose}>
           <span>닫기 ✕</span>
         </button>
       </div>
-      <div className="max-h-[70vh] overflow-y-auto rounded-lg shadow-2xl">
+      <div className="max-h-[calc(100dvh-14rem)] overflow-y-auto rounded-lg shadow-2xl">
         <CharacterCard cid={cid} user={user} character={character} isGM={isGM} members={members} />
       </div>
     </div>
