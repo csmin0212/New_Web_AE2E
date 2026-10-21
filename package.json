@@ -11,6 +11,7 @@
     "emulators": "firebase emulators:start --project demo-trpg-vtt"
   },
   "dependencies": {
+    "@vercel/blob": "^2.8.2",
     "firebase": "^13.0.0",
     "jose": "^6.2.13",
     "next": "16.2.7",
