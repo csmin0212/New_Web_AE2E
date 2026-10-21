@@ -1,0 +1,43 @@
+{
+  "rules": {
+    "gm": {
+      "$cid": {
+        ".read": "auth != null && root.child('members').child($cid).child(auth.uid).exists()",
+        ".write": "auth != null && !data.exists() && newData.val() === auth.uid"
+      }
+    },
+    "codes": {
+      "$cid": {
+        ".write": "auth != null && root.child('gm').child($cid).val() === auth.uid"
+      }
+    },
+    "members": {
+      "$cid": {
+        ".read": "auth != null && data.child(auth.uid).exists()",
+        "$uid": {
+          ".write": "auth != null && ((auth.uid === $uid && !data.exists() && ((newData.child('role').val() === 'player' && newData.child('code').val() === root.child('codes').child($cid).val()) || (newData.child('role').val() === 'gm' && root.child('gm').child($cid).val() === auth.uid))) || (root.child('gm').child($cid).val() === auth.uid && !newData.exists()))"
+        }
+      }
+    },
+    "chat": {
+      "$cid": {
+        "public": {
+          ".read": "auth != null && root.child('members').child($cid).child(auth.uid).exists()",
+          "$mid": {
+            ".write": "auth != null && root.child('members').child($cid).child(auth.uid).exists() && ((!data.exists() && newData.child('uid').val() === auth.uid) || (!newData.exists() && root.child('gm').child($cid).val() === auth.uid))",
+            ".validate": "!newData.exists() || (newData.hasChildren(['ts', 'uid', 'kind', 'text', 'speaker']) && newData.child('text').isString() && newData.child('text').val().length <= 4000)"
+          }
+        },
+        "inbox": {
+          "$uid": {
+            ".read": "auth != null && auth.uid === $uid && root.child('members').child($cid).child(auth.uid).exists()",
+            "$mid": {
+              ".write": "auth != null && root.child('members').child($cid).child(auth.uid).exists() && root.child('members').child($cid).child($uid).exists() && !data.exists() && newData.child('uid').val() === auth.uid",
+              ".validate": "newData.hasChildren(['ts', 'uid', 'kind', 'text', 'speaker']) && newData.child('text').isString() && newData.child('text').val().length <= 4000"
+            }
+          }
+        }
+      }
+    }
+  }
+}
