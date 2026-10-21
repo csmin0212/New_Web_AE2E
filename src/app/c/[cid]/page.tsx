@@ -8,6 +8,7 @@ import { ChatInput } from "@/components/session/ChatInput";
 import { ChatLog } from "@/components/session/ChatLog";
 import { DirectorPanel } from "@/components/session/DirectorPanel";
 import { PartyBar } from "@/components/session/PartyBar";
+import { CutinOverlay, TransitionOverlay } from "@/components/session/FxOverlays";
 import { PhaseCutin } from "@/components/session/PhaseCutin";
 import { ResizeHandle, useResizable } from "@/components/session/Resizable";
 import { SessionProvider, useSession } from "@/components/session/SessionContext";
@@ -89,6 +90,8 @@ function SessionLayout() {
         <ChatInput />
       </footer>
       <PhaseCutin />
+      <TransitionOverlay />
+      <CutinOverlay />
     </div>
   );
 }

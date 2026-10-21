@@ -25,6 +25,15 @@
         ".write": "auth != null && root.child('gm').child($cid).val() === auth.uid"
       }
     },
+    "fx": {
+      "$cid": {
+        ".read": "auth != null && root.child('members').child($cid).child(auth.uid).exists()",
+        "cutin": {
+          ".write": "auth != null && root.child('members').child($cid).child(auth.uid).exists()",
+          ".validate": "newData.hasChildren(['key', 'at', 'uid']) && newData.child('uid').val() === auth.uid && newData.child('key').isString() && newData.child('key').val().length <= 64 && root.child('scene').child($cid).child('cutins').child(newData.child('key').val()).exists()"
+        }
+      }
+    },
     "battle": {
       "$cid": {
         ".read": "auth != null && root.child('members').child($cid).child(auth.uid).exists()",

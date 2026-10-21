@@ -21,6 +21,7 @@ import { addEntryToCampaign, subscribeLibrary, type LibraryEntry } from "@/lib/l
 import { splitTitle } from "@/lib/stage";
 import { THEMES } from "@/lib/themes";
 import { SheetImport } from "../SheetImport";
+import { CutinsSection, ScenesSection } from "./FxSections";
 import { ResizeHandle, useResizable } from "./Resizable";
 import { useSession } from "./SessionContext";
 
@@ -135,6 +136,8 @@ export function DirectorPanel({ onClose }: { onClose: () => void }) {
           )}
         </Section>
 
+        <ScenesSection Section={Section} />
+        <CutinsSection Section={Section} />
         <CastSection />
         <NpcSection />
         <BattleSection />

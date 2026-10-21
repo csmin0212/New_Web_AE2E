@@ -8,6 +8,7 @@
 //   /w 이름 내용    → 귓속말
 //   /img URL       → 이미지
 //   /me 문장        → 행동 묘사 (@와 같음)
+//   /cutin 이름     → 저장해 둔 컷인 재생
 
 export type ChatCommand =
   | { type: "say"; text: string }
@@ -16,6 +17,7 @@ export type ChatCommand =
   | { type: "roll"; expr: string; label: string; check: boolean; secret: boolean }
   | { type: "whisper"; target: string; text: string }
   | { type: "image"; url: string }
+  | { type: "cutin"; name: string }
   | { type: "error"; message: string };
 
 const DICE_HEAD = /^[+-]?(\d*[dD]\d*|\d+)([+-](\d*[dD]\d*|\d+))*/;
@@ -64,6 +66,9 @@ export function parseChatInput(raw: string): ChatCommand | null {
       }
       case "me":
         return rest ? { type: "action", text: rest } : null;
+      case "cutin":
+      case "컷인":
+        return rest ? { type: "cutin", name: rest } : { type: "error", message: "사용법: /cutin 컷인 이름" };
       default:
         return { type: "error", message: `모르는 명령이에요: /${cmd}` };
     }

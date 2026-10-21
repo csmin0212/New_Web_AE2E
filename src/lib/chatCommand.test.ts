@@ -27,4 +27,10 @@ describe("parseChatInput", () => {
     expect(parseChatInput("/img 없음")).toMatchObject({ type: "error" });
     expect(parseChatInput("/xyz")).toMatchObject({ type: "error" });
   });
+
+  it("컷인 명령", () => {
+    expect(parseChatInput("/cutin 총공격")).toEqual({ type: "cutin", name: "총공격" });
+    expect(parseChatInput("/컷인 홀드 업")).toEqual({ type: "cutin", name: "홀드 업" });
+    expect(parseChatInput("/cutin")).toMatchObject({ type: "error" });
+  });
 });

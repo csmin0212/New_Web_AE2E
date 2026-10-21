@@ -1,0 +1,348 @@
+/* 장면 전환·컷인 연출. 길이는 --fx-ms 로 받는다. */
+
+.fx-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+/* ── 전환: 가운데(50%)에서 화면이 완전히 가려지고, 그때 장면이 바뀐다 ── */
+.tr-fade {
+  background: #000;
+  animation: tr-fade var(--fx-ms) ease-in-out both;
+}
+@keyframes tr-fade {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  40%,
+  60% {
+    opacity: 1;
+  }
+}
+
+.tr-flash {
+  background: #fff;
+  animation: tr-flash var(--fx-ms) ease-out both;
+}
+@keyframes tr-flash {
+  0% {
+    opacity: 0;
+  }
+  15%,
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.tr-wipe::before,
+.tr-wipe::after {
+  content: "";
+  position: absolute;
+  inset: -20% -60%;
+  transform: skewX(-20deg);
+  animation: tr-wipe var(--fx-ms) cubic-bezier(0.7, 0, 0.3, 1) both;
+}
+.tr-wipe::before {
+  background: var(--accent);
+}
+.tr-wipe::after {
+  background: #0a0a0a;
+  animation-delay: calc(var(--fx-ms) * 0.06);
+}
+@keyframes tr-wipe {
+  0% {
+    translate: -130% 0;
+  }
+  45%,
+  55% {
+    translate: 0 0;
+  }
+  100% {
+    translate: 130% 0;
+  }
+}
+
+/* 아이리스: 가운데 투명한 원의 그림자가 화면을 덮는다 — 원이 0 으로 닫혔다 다시 열림 */
+.tr-iris::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 160vmax;
+  height: 160vmax;
+  translate: -50% -50%;
+  border-radius: 50%;
+  box-shadow: 0 0 0 200vmax #000;
+  animation: tr-iris var(--fx-ms) ease-in-out both;
+}
+@keyframes tr-iris {
+  0%,
+  100% {
+    width: 160vmax;
+    height: 160vmax;
+  }
+  45%,
+  55% {
+    width: 0;
+    height: 0;
+  }
+}
+
+.tr-curtain::before,
+.tr-curtain::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 51%;
+  background:
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.25) 0 18px, transparent 18px 46px),
+    linear-gradient(180deg, color-mix(in srgb, var(--accent-2, #8c2f22) 85%, #000), color-mix(in srgb, var(--accent-2, #8c2f22) 55%, #000));
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
+  animation: tr-curtain-l var(--fx-ms) cubic-bezier(0.6, 0, 0.3, 1) both;
+}
+.tr-curtain::before {
+  left: 0;
+}
+.tr-curtain::after {
+  right: 0;
+  animation-name: tr-curtain-r;
+}
+@keyframes tr-curtain-l {
+  0%,
+  100% {
+    translate: -100% 0;
+  }
+  40%,
+  60% {
+    translate: 0 0;
+  }
+}
+@keyframes tr-curtain-r {
+  0%,
+  100% {
+    translate: 100% 0;
+  }
+  40%,
+  60% {
+    translate: 0 0;
+  }
+}
+
+.tr-blur {
+  backdrop-filter: blur(0px);
+  background: rgba(0, 0, 0, 0);
+  animation: tr-blur var(--fx-ms) ease-in-out both;
+}
+@keyframes tr-blur {
+  0%,
+  100% {
+    backdrop-filter: blur(0px);
+    background: rgba(0, 0, 0, 0);
+  }
+  45%,
+  55% {
+    backdrop-filter: blur(24px);
+    background: rgba(0, 0, 0, 0.55);
+  }
+}
+
+/* ── 컷인 ── */
+.ci {
+  --ci-color: var(--accent);
+  animation: ci-fade var(--fx-ms) ease both;
+}
+@keyframes ci-fade {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  8%,
+  88% {
+    opacity: 1;
+  }
+}
+.ci-text {
+  font-family: var(--font-display), var(--font-noto), sans-serif;
+  font-weight: 900;
+  color: #fff;
+  text-shadow:
+    3px 3px 0 #000,
+    0 0 18px rgba(0, 0, 0, 0.6);
+  letter-spacing: 0.02em;
+  word-break: keep-all;
+}
+.ci-sub {
+  font-family: var(--font-latin), var(--font-display), serif;
+  letter-spacing: 0.3em;
+  color: #fff;
+  text-shadow: 2px 2px 0 #000;
+}
+
+/* 사선 띠 */
+.ci-band .ci-stripe {
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  top: 50%;
+  height: 46%;
+  translate: 0 -50%;
+  transform: skewY(-8deg);
+  background:
+    radial-gradient(rgba(0, 0, 0, 0.18) 1.4px, transparent 1.6px) 0 0 / 10px 10px,
+    var(--ci-color);
+  box-shadow:
+    0 -10px 0 #000,
+    0 10px 0 #000;
+  animation: ci-band-in calc(var(--fx-ms) * 0.25) cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+.ci-band .ci-art {
+  position: absolute;
+  bottom: 0;
+  left: 6%;
+  height: 92%;
+  animation: ci-art-in calc(var(--fx-ms) * 0.3) cubic-bezier(0.2, 0.9, 0.2, 1) calc(var(--fx-ms) * 0.05) both;
+  filter: drop-shadow(6px 0 0 #fff) drop-shadow(-6px 0 0 #fff) drop-shadow(0 6px 0 #fff) drop-shadow(0 -6px 0 #fff);
+}
+.ci-band .ci-words {
+  position: absolute;
+  right: 6%;
+  top: 50%;
+  translate: 0 -50%;
+  text-align: right;
+  animation: ci-words-in calc(var(--fx-ms) * 0.3) cubic-bezier(0.2, 0.9, 0.2, 1) calc(var(--fx-ms) * 0.1) both;
+}
+@keyframes ci-band-in {
+  from {
+    translate: -120% -50%;
+  }
+}
+@keyframes ci-art-in {
+  from {
+    translate: -40% 0;
+    opacity: 0;
+  }
+}
+@keyframes ci-words-in {
+  from {
+    translate: 30% -50%;
+    opacity: 0;
+    letter-spacing: 0.4em;
+  }
+}
+
+/* 옆에서 등장 */
+.ci-side {
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.55), transparent 60%);
+}
+.ci-side .ci-art {
+  position: absolute;
+  bottom: 0;
+  right: 4%;
+  height: 96%;
+  animation: ci-side-in calc(var(--fx-ms) * 0.25) cubic-bezier(0.2, 0.9, 0.2, 1) both;
+  filter: drop-shadow(4px 0 0 var(--ci-color)) drop-shadow(-4px 0 0 var(--ci-color)) drop-shadow(0 4px 0 var(--ci-color)) drop-shadow(0 -4px 0 var(--ci-color));
+}
+.ci-side .ci-words {
+  position: absolute;
+  left: 7%;
+  bottom: 16%;
+  animation: ci-words-in calc(var(--fx-ms) * 0.3) ease-out calc(var(--fx-ms) * 0.08) both;
+}
+.ci-side .ci-plate {
+  display: inline-block;
+  padding: 0.25em 1.2em;
+  background: var(--ci-color);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 14px) 100%, 0 100%);
+}
+@keyframes ci-side-in {
+  from {
+    translate: 60% 0;
+    opacity: 0;
+  }
+}
+
+/* 번쩍 */
+.ci-flash {
+  background: radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--ci-color) 45%, #000), #000 75%);
+}
+.ci-flash::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  animation: ci-flash-white calc(var(--fx-ms) * 0.3) ease-out both;
+}
+.ci-flash .ci-art {
+  position: absolute;
+  inset: 6%;
+  width: 88%;
+  height: 88%;
+  object-fit: contain;
+  animation: ci-pop calc(var(--fx-ms) * 0.35) cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+.ci-flash .ci-words {
+  position: absolute;
+  inset: auto 0 10% 0;
+  text-align: center;
+  animation: ci-pop calc(var(--fx-ms) * 0.35) cubic-bezier(0.2, 1.4, 0.4, 1) calc(var(--fx-ms) * 0.08) both;
+}
+@keyframes ci-flash-white {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes ci-pop {
+  from {
+    scale: 1.35;
+    opacity: 0;
+  }
+}
+
+/* 한 장면 (CG) */
+.ci-full {
+  background: #000;
+}
+.ci-full .ci-frame {
+  position: absolute;
+  inset: 12% 0;
+  overflow: hidden;
+}
+.ci-full .ci-art {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  animation: ci-kenburns var(--fx-ms) ease-out both;
+}
+.ci-full .ci-words {
+  position: absolute;
+  inset: auto 0 2% 0;
+  height: 10%;
+  display: grid;
+  place-items: center;
+  text-align: center;
+}
+@keyframes ci-kenburns {
+  from {
+    scale: 1.12;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fx-layer,
+  .fx-layer *,
+  .fx-layer::before,
+  .fx-layer::after {
+    animation-duration: 1ms !important;
+  }
+}

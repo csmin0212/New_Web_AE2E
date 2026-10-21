@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { sendMessage } from "@/lib/chat";
 import { parseChatInput } from "@/lib/chatCommand";
+import { findKeywordCutin, triggerCutin } from "@/lib/fx";
 import { roll } from "@/lib/dice";
 import { splitTitle } from "@/lib/stage";
 import type { Speaker } from "@/lib/types";
@@ -68,9 +69,23 @@ export function ChatInput() {
       switch (cmd.type) {
         case "say":
         case "action":
-        case "ooc":
+        case "ooc": {
           await sendMessage(cid, { ...base, kind: cmd.type, text: cmd.text });
+          // 대사에 컷인 키워드가 들어 있으면 자동 재생 (잡담은 제외)
+          const hit = cmd.type !== "ooc" ? findKeywordCutin(cmd.text, scene.cutins) : null;
+          if (hit) await triggerCutin(cid, user.uid, hit);
           break;
+        }
+        case "cutin": {
+          const key = Object.entries(scene.cutins).find(([, c]) => c.name === cmd.name)?.[0];
+          if (!key) {
+            setText(sent);
+            setError(`「${cmd.name}」 컷인이 없어요. 연출 → 컷인에서 이름을 확인하세요.`);
+            return;
+          }
+          await triggerCutin(cid, user.uid, key);
+          break;
+        }
         case "image":
           await sendMessage(cid, { ...base, kind: "image", text: cmd.url });
           break;
