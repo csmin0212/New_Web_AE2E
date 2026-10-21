@@ -35,6 +35,12 @@
         "show": {
           ".write": "auth != null && root.child('gm').child($cid).val() === auth.uid",
           ".validate": "!newData.exists() || (newData.hasChildren(['id', 'at']) && newData.child('id').isString())"
+        },
+        "pointer": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid && root.child('members').child($cid).child(auth.uid).exists()",
+            ".validate": "!newData.exists() || (newData.hasChildren(['kind', 'name', 'to', 'at']) && newData.child('name').isString() && newData.child('name').val().length <= 60)"
+          }
         }
       }
     },
@@ -45,7 +51,16 @@
           ".write": "auth != null && root.child('gm').child($cid).val() === auth.uid"
         },
         "tokens": {
-          ".write": "auth != null && root.child('gm').child($cid).val() === auth.uid"
+          ".write": "auth != null && root.child('gm').child($cid).val() === auth.uid",
+          "$tid": {
+            "status": {
+              ".write": "auth != null && root.child('battle').child($cid).child('tokens').child($tid).child('ownerUid').val() === auth.uid",
+              ".validate": "!newData.exists() || newData.hasChildren()",
+              "$bs": {
+                ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 20"
+              }
+            }
+          }
         },
         "pos": {
           ".write": "auth != null && root.child('gm').child($cid).val() === auth.uid",

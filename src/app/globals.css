@@ -403,4 +403,47 @@ body {
     rotate: 360deg;
   }
 }
+
+/* 핑 — 퍼지는 고리 두 겹 + 누가 찍었는지 */
+.vtt-ping {
+  width: 0;
+  height: 0;
+}
+.vtt-ping span {
+  position: absolute;
+  left: -28px;
+  top: -28px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 3px solid #ffe14d;
+  box-shadow: 0 0 12px #ffe14d;
+  animation: vtt-ping 1.2s ease-out 2 both;
+}
+.vtt-ping span + span {
+  animation-delay: 0.35s;
+}
+.vtt-ping b {
+  position: absolute;
+  left: 50%;
+  top: 26px;
+  translate: -50% 0;
+  white-space: nowrap;
+  font-size: 11px;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #ffe14d;
+  animation: stage-fade 0.3s ease both;
+}
+@keyframes vtt-ping {
+  from {
+    scale: 0.2;
+    opacity: 1;
+  }
+  to {
+    scale: 1.6;
+    opacity: 0;
+  }
+}
 }

@@ -66,3 +66,12 @@ describe("코스트", () => {
     expect(parseCost("특수")).toBeNull();
   });
 });
+
+describe("배드 스테이터스", () => {
+  it("클린업에 멍함·격앙·넉백이 풀리고 독은 강도×5", async () => {
+    const { cleanup, effectiveInit } = await import("./battleRules");
+    expect(cleanup({ daze: 1, rage: 1, knockback: 2, poison: 3, awe: 1 })).toEqual({ next: { poison: 3, awe: 1 }, poison: 15 });
+    expect(effectiveInit(12, { knockback: 2 })).toBe(2);
+    expect(effectiveInit(12)).toBe(12);
+  });
+});

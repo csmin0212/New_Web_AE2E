@@ -2,7 +2,7 @@
 
 import { onValue, push, ref, remove, serverTimestamp, set, update } from "firebase/database";
 import { rtdb } from "./firebase";
-import type { TurnState } from "./battleRules";
+import type { StatusMap, TurnState } from "./battleRules";
 import type { CutinPreset, ScenePreset, TransitionState } from "./fx";
 import type { ThemeId } from "./themes";
 
@@ -76,6 +76,7 @@ export type Token = {
   init: number; // 행동치
   hp?: { cur: number; max: number }; // 예전 시트 없는 에너미 (GM 화면에만 보인다)
   cond?: "hurt" | "down"; // 에너미 상태 — 숫자 대신 플레이어에게 보여 준다 (GM 화면이 갱신)
+  status?: StatusMap; // 배드 스테이터스 (GM 또는 토큰 주인이 붙이고 뗀다)
 };
 export type BattleMeta = { cols: number; rows: number; background: string | null; round: number; turn: number };
 export type Battle = {
@@ -83,6 +84,7 @@ export type Battle = {
   tokens: Record<string, Token>;
   pos: Record<string, { x: number; y: number }>;
   turn: TurnState;
+  loaded?: boolean; // 서버 값을 한 번이라도 받았는지 (기본값과 구분)
 };
 
 export const DEFAULT_BATTLE: Battle = {
@@ -155,6 +157,7 @@ export function subscribeBattle(cid: string, cb: (b: Battle) => void) {
       tokens: v.tokens ?? {},
       pos: v.pos ?? {},
       turn: { actor: v.turn?.actor ?? null, round: v.turn?.round ?? meta.round, acted: v.turn?.acted ?? {} },
+      loaded: true,
     });
   });
 }
@@ -174,6 +177,10 @@ export async function addToken(cid: string, token: Token, at: { x: number; y: nu
 
 export function updateToken(cid: string, key: string, patch: Partial<Token>) {
   return update(ref(rtdb, `battle/${cid}/tokens/${key}`), clean(patch));
+}
+
+export function setTokenStatus(cid: string, key: string, status: StatusMap) {
+  return set(ref(rtdb, `battle/${cid}/tokens/${key}/status`), Object.keys(status).length ? status : null);
 }
 
 export function removeToken(cid: string, key: string) {

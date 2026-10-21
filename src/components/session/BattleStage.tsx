@@ -2,8 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { setTurn } from "@/lib/battle";
-import { CONDITION_LABEL, endTurn, giveTurn, initiativeOrder, startBattle } from "@/lib/battleRules";
-import { moveToken, removeToken, updateToken, type Token } from "@/lib/scene";
+import { derive } from "@/lib/ar/derive";
+import { BAD_STATUS, CONDITION_LABEL, effectiveInit, endTurn, giveTurn, initiativeOrder, startBattle, type StatusMap } from "@/lib/battleRules";
+import { cellDistance, clearPointer, METERS_PER_CELL, setPointer, subscribePointers, type Cell, type Pointer } from "@/lib/pointer";
+import { moveToken, removeToken, setTokenStatus, updateToken, type Token } from "@/lib/scene";
 import { splitTitle } from "@/lib/stage";
 import type { Character, Gauge } from "@/lib/types";
 import { useContextMenu, type MenuItem } from "../ContextMenu";
@@ -11,26 +13,29 @@ import { ActionDock } from "./ActionDock";
 import { openSheet } from "./PartyBar";
 import { useSession } from "./SessionContext";
 
-type Unit = Token & { id: string; x: number; y: number; character?: Character };
+type Unit = Token & { id: string; x: number; y: number; baseInit: number; character?: Character };
+type Tool = "move" | "ruler" | "ping";
 
 const SIDE_RING: Record<Token["side"], string> = {
   pc: "var(--accent)",
   ally: "#4fae7c",
   enemy: "#d0463a",
 };
-const METERS_PER_CELL = 5;
 
 // 전투 모드 — 행동 순서 띠 + 그리드 + 유닛 카드 + (내 차례면) 행동 바
 export function BattleStage() {
   const { battle, characters, isGM, user, cid } = useSession();
   const turn = battle.turn;
   const menu = useContextMenu();
+  const [tool, setTool] = useState<Tool>("move");
 
   const units: Unit[] = useMemo(
     () =>
       Object.entries(battle.tokens).map(([id, t]) => ({
         ...t,
         id,
+        init: effectiveInit(t.init, t.status), // 넉백만큼 늦게
+        baseInit: t.init,
         x: battle.pos[id]?.x ?? 0,
         y: battle.pos[id]?.y ?? 0,
         character: t.charId ? characters.find((c) => c.id === t.charId) : undefined,
@@ -82,6 +87,10 @@ export function BattleStage() {
       });
     if (dockUnit && dockUnit.id !== u.id)
       items.push({ label: targetIds.includes(u.id) ? "대상에서 빼기" : "대상으로 지정", icon: "◎", onSelect: () => toggleTarget(u.id) });
+    if (canControl(u)) {
+      const on = Object.keys(u.status ?? {}).length;
+      items.push({ label: "상태 이상…", hint: on ? `${on}개` : undefined, icon: "☠", onSelect: () => menu.open(e, statusMenu(u)) });
+    }
     if (isGM) {
       items.push("sep");
       if (turn.actor !== u.id) items.push({ label: "이 유닛 차례로", icon: "▶", onSelect: () => setTurn(cid, giveTurn(turn, u.id)) });
@@ -90,13 +99,39 @@ export function BattleStage() {
         hint: String(u.init),
         icon: "⇅",
         onSelect: () => {
-          const v = prompt(`${u.name} 행동치`, String(u.init));
+          const v = prompt(`${u.name} 행동치 (넉백 전)`, String(u.baseInit));
           if (v != null && v.trim() !== "" && Number.isFinite(Number(v))) return updateToken(cid, u.id, { init: Math.trunc(Number(v)) });
         },
       });
       items.push({ label: "토큰 빼기", icon: "✕", danger: true, onSelect: () => removeToken(cid, u.id) });
     }
     menu.open(e, items);
+  }
+
+  // 배드 스테이터스 켜고 끄기 — 강도가 있는 것은 켤 때 강도를 묻는다
+  function statusMenu(u: Unit): MenuItem[] {
+    const cur: StatusMap = u.status ?? {};
+    const items: MenuItem[] = [{ title: `${splitTitle(u.name).name} · 배드 스테이터스` }];
+    for (const b of BAD_STATUS) {
+      const v = cur[b.id];
+      items.push({
+        label: b.label + (v && b.strength ? ` ${v}` : ""),
+        hint: b.hint.split(" · ")[0],
+        icon: v ? "✓" : <span style={{ color: b.color }}>●</span>,
+        onSelect: () => {
+          const next = { ...cur };
+          if (v) delete next[b.id];
+          else {
+            const n = b.strength ? parseInt(prompt(`${b.label} 강도`, "1") ?? "", 10) : 1;
+            if (!Number.isFinite(n) || n < 1) return;
+            next[b.id] = Math.min(20, n);
+          }
+          return setTokenStatus(cid, u.id, next);
+        },
+      });
+    }
+    if (Object.keys(cur).length) items.push("sep", { label: "모두 풀기", icon: "✕", onSelect: () => setTokenStatus(cid, u.id, {}) });
+    return items;
   }
 
   const gmPassing = isGM && current?.ownerUid && current.ownerUid !== user.uid;
@@ -129,6 +164,7 @@ export function BattleStage() {
                     <div className="max-w-24 truncate text-xs font-bold">{splitTitle(u.name).name}</div>
                     <div className="font-latin text-[10px] text-muted">
                       INIT {u.init}
+                      {u.init !== u.baseInit && <span className="text-hp"> ↓</span>}
                       {done && " ✓"}
                     </div>
                   </div>
@@ -157,12 +193,26 @@ export function BattleStage() {
 
       <div className="flex min-h-0 flex-1">
         <div className="relative min-w-0 flex-1">
+          <div className="absolute top-2 left-2 z-20 flex overflow-hidden rounded-md border border-line bg-panel/90 text-xs shadow-lg" role="toolbar" aria-label="그리드 도구">
+            {(
+              [
+                ["move", "✋", "이동 — 토큰 끌어 옮기기"],
+                ["ruler", "📏", "자 — 끌어서 거리 재기 (모두에게 보임)"],
+                ["ping", "📍", "핑 — 눌러서 모두에게 위치 알리기 (Alt+클릭도 됨)"],
+              ] as const
+            ).map(([t, icon, hint]) => (
+              <button key={t} className={`px-2.5 py-1.5 ${tool === t ? "bg-accent text-accent-ink" : "hover:bg-panel-2"}`} title={hint} onClick={() => setTool(t)}>
+                {icon}
+              </button>
+            ))}
+          </div>
           <Grid
+            tool={tool}
             units={units}
             currentId={turn.actor ?? undefined}
             targetIds={targetIds}
             picking={!!dockUnit}
-            canMove={canControl}
+            canMove={(u) => tool === "move" && canControl(u)}
             onMove={(id, at) => moveToken(cid, id, at)}
             onPick={(u) => {
               if (dockUnit && u.id !== dockUnit.id) toggleTarget(u.id);
@@ -190,6 +240,7 @@ export function BattleStage() {
 }
 
 function Grid({
+  tool,
   units,
   currentId,
   targetIds,
@@ -207,8 +258,10 @@ function Grid({
   onMove: (id: string, at: { x: number; y: number }) => void;
   onPick: (u: Unit) => void;
   onMenu: (e: MouseEvent, u: Unit) => void;
+  tool: Tool;
 }) {
-  const { battle, isGM } = useSession();
+  const { battle, isGM, cid, user, members } = useSession();
+  const myName = members.find((m) => m.uid === user.uid)?.name ?? user.displayName ?? "누군가";
   const { cols, rows, background } = battle.meta;
   const wrapRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -262,13 +315,91 @@ function Grid({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drag?.id, cell, cols, rows, onMove]);
 
-  const dist = drag ? Math.max(Math.abs(drag.to.x - drag.from.x), Math.abs(drag.to.y - drag.from.y)) : 0;
+  const dist = drag ? cellDistance(drag.from, drag.to) : 0;
+  // 끌고 있는 유닛의 이동력 (칸) — 시트를 읽을 수 있을 때만
+  const dragUnit = drag ? units.find((u) => u.id === drag.id) : undefined;
+  const moveCells = dragUnit?.character?.ar ? Math.floor(derive(dragUnit.character.ar).move / METERS_PER_CELL) : null;
+  const over = moveCells != null && dist > moveCells;
+
+  // ── 자·핑 (다른 사람 것은 Realtime DB 로 받는다) ──
+  const [pointers, setPointers] = useState<Record<string, Pointer>>({});
+  useEffect(() => subscribePointers(cid, setPointers), [cid]);
+  const [ruler, setRuler] = useState<{ from: Cell; to: Cell } | null>(null);
+  const sentAt = useRef(0);
+  const clearTimer = useRef<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = window.setInterval(() => setNow(Date.now()), 2000);
+    return () => clearInterval(t);
+  }, []);
+
+  function share(p: Omit<Pointer, "at" | "name">, force = false) {
+    const t = Date.now();
+    if (!force && t - sentAt.current < 90) return; // 끄는 동안은 조금씩만 보낸다
+    sentAt.current = t;
+    setPointer(cid, user.uid, { ...p, name: myName }).catch(() => {});
+  }
+  function clearLater(ms: number) {
+    if (clearTimer.current) clearTimeout(clearTimer.current);
+    clearTimer.current = window.setTimeout(() => {
+      setRuler(null);
+      clearPointer(cid, user.uid).catch(() => {});
+    }, ms);
+  }
+  function ping(at: Cell) {
+    share({ kind: "ping", to: at }, true);
+    clearLater(2600);
+  }
+
+  useEffect(() => {
+    if (!ruler) return;
+    const move = (e: PointerEvent) => {
+      const to = cellAt(e.clientX, e.clientY);
+      setRuler((r) => (r && (r.to.x !== to.x || r.to.y !== to.y) ? { ...r, to } : r));
+    };
+    const up = () => clearLater(2500);
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up, { once: true });
+    return () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+    };
+    // 자를 잡은 동안만 듣는다
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ruler?.from.x, ruler?.from.y, cell]);
+  useEffect(() => {
+    if (ruler) share({ kind: "ruler", from: ruler.from, to: ruler.to });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ruler?.to.x, ruler?.to.y]);
+
+  const others = Object.entries(pointers).filter(([uid, p]) => uid !== user.uid && now - (p.at || 0) < 15000);
+  const rulers: { key: string; from: Cell; to: Cell; name: string; mine: boolean }[] = [
+    ...(ruler ? [{ key: "me", ...ruler, name: myName, mine: true }] : []),
+    ...others.filter(([, p]) => p.kind === "ruler" && p.from).map(([uid, p]) => ({ key: uid, from: p.from!, to: p.to, name: p.name, mine: false })),
+  ];
+  const mine = pointers[user.uid];
+  const pings = [
+    ...others.filter(([, p]) => p.kind === "ping").map(([uid, p]) => ({ key: `${uid}${p.at}`, at: p.to, name: p.name })),
+    ...(mine?.kind === "ping" ? [{ key: `me${mine.at}`, at: mine.to, name: myName }] : []),
+  ];
 
   return (
     <div ref={wrapRef} className="absolute inset-0 grid place-items-center">
       <div
         ref={gridRef}
-        className="relative overflow-hidden rounded-sm shadow-[0_20px_60px_rgba(0,0,0,.55)]"
+        className={`relative overflow-hidden rounded-sm shadow-[0_20px_60px_rgba(0,0,0,.55)] ${tool !== "move" ? "cursor-crosshair" : ""}`}
+        onPointerDown={(e) => {
+          if (e.button !== 0) return;
+          const at = cellAt(e.clientX, e.clientY);
+          if (e.altKey || tool === "ping") {
+            e.preventDefault();
+            ping(at);
+          } else if (tool === "ruler") {
+            e.preventDefault();
+            if (clearTimer.current) clearTimeout(clearTimer.current);
+            setRuler({ from: at, to: at });
+          }
+        }}
         style={{
           width: cols * cell,
           height: rows * cell,
@@ -291,6 +422,48 @@ function Grid({
             backgroundPosition: "0 0, 0 0, -1px 0, 0 -1px",
           }}
         />
+        {/* 이동할 수 있는 범위 */}
+        {drag && moveCells != null && (
+          <div
+            className="pointer-events-none absolute border border-accent/50 bg-accent/10"
+            style={{
+              left: Math.max(0, drag.from.x - moveCells) * cell,
+              top: Math.max(0, drag.from.y - moveCells) * cell,
+              width: (Math.min(cols - 1, drag.from.x + moveCells) - Math.max(0, drag.from.x - moveCells) + 1) * cell,
+              height: (Math.min(rows - 1, drag.from.y + moveCells) - Math.max(0, drag.from.y - moveCells) + 1) * cell,
+            }}
+          />
+        )}
+        {/* 자 */}
+        {rulers.length > 0 && (
+          <svg className="pointer-events-none absolute inset-0 z-30" width={cols * cell} height={rows * cell}>
+            {rulers.map((r) => {
+              const c = (v: number) => v * cell + cell / 2;
+              const d = cellDistance(r.from, r.to);
+              const color = r.mine ? "#ffe14d" : "#7fe3e6";
+              return (
+                <g key={r.key}>
+                  <line x1={c(r.from.x)} y1={c(r.from.y)} x2={c(r.to.x)} y2={c(r.to.y)} stroke={color} strokeWidth={3} strokeDasharray="8 5" />
+                  <circle cx={c(r.from.x)} cy={c(r.from.y)} r={5} fill={color} />
+                  <circle cx={c(r.to.x)} cy={c(r.to.y)} r={7} fill="none" stroke={color} strokeWidth={3} />
+                  <foreignObject x={c(r.to.x) + 10} y={c(r.to.y) - 28} width={170} height={40}>
+                    <div className="inline-block rounded bg-black/85 px-1.5 py-0.5 text-[11px] leading-tight font-bold whitespace-nowrap text-white">
+                      {d}칸 · {d * METERS_PER_CELL}m{!r.mine && <span className="font-normal opacity-70"> ({r.name})</span>}
+                    </div>
+                  </foreignObject>
+                </g>
+              );
+            })}
+          </svg>
+        )}
+        {/* 핑 */}
+        {pings.map((p) => (
+          <div key={p.key} className="vtt-ping pointer-events-none absolute z-30" style={{ left: p.at.x * cell + cell / 2, top: p.at.y * cell + cell / 2 }}>
+            <span />
+            <span />
+            <b>{p.name}</b>
+          </div>
+        ))}
         {/* 이동 경로 */}
         {drag && (
           <>
@@ -302,8 +475,8 @@ function Grid({
               className="pointer-events-none absolute grid place-items-center bg-accent/25 ring-2 ring-accent"
               style={{ left: drag.to.x * cell, top: drag.to.y * cell, width: cell, height: cell }}
             >
-              <span className="rounded bg-black/80 px-1.5 text-[11px] font-bold whitespace-nowrap text-white">
-                {dist}칸 · {dist * METERS_PER_CELL}m
+              <span className={`rounded px-1.5 text-[11px] font-bold whitespace-nowrap text-white ${over ? "bg-hp" : "bg-black/80"}`}>
+                {dist}칸 · {dist * METERS_PER_CELL}m{moveCells != null && ` / 이동 ${moveCells}칸`}
               </span>
             </div>
           </>
@@ -335,6 +508,7 @@ function Grid({
               title={picking ? `${u.name} — 눌러서 대상 지정` : u.name}
             >
               <TokenFace unit={u} size={cell - 6} active={currentId === u.id} />
+              <StatusDots status={u.status} />
               {targeted && <span className="target-ring pointer-events-none absolute inset-[-3px] rounded-full" />}
               <HpBar gauge={hp} width={cell - 8} />
               {u.cond && (
@@ -382,6 +556,27 @@ function TokenFace({ unit, size, active }: { unit: Unit; size: number; active?: 
   );
 }
 
+// 토큰 왼쪽 위에 배드 스테이터스 점
+function StatusDots({ status }: { status?: StatusMap }) {
+  const on = BAD_STATUS.filter((b) => status?.[b.id]);
+  if (!on.length) return null;
+  return (
+    <div className="pointer-events-none absolute -top-1 -left-1 flex max-w-full flex-wrap gap-px">
+      {on.slice(0, 4).map((b) => (
+        <span
+          key={b.id}
+          className="grid h-3.5 min-w-3.5 place-items-center rounded-full px-0.5 text-[8px] leading-none font-bold text-white ring-1 ring-black/60"
+          style={{ background: b.color }}
+          title={b.label}
+        >
+          {b.label.slice(0, 1)}
+        </span>
+      ))}
+      {on.length > 4 && <span className="text-[8px] font-bold text-white">+{on.length - 4}</span>}
+    </div>
+  );
+}
+
 function HpBar({ gauge, width }: { gauge?: Gauge; width: number }) {
   if (!gauge || gauge.max <= 0) return null;
   const pct = Math.max(0, Math.min(100, (gauge.cur / gauge.max) * 100));
@@ -414,6 +609,16 @@ function UnitCards({ units, currentId, onMenu }: { units: Unit[]; currentId?: st
               <div className="truncate font-bold">{splitTitle(u.name).name}</div>
               {hp && <MiniGauge label="HP" g={hp} color="bg-hp" />}
               {mp && mp.max > 0 && <MiniGauge label="MP" g={mp} color="bg-mp" />}
+              {u.status && Object.keys(u.status).length > 0 && (
+                <div className="mt-0.5 flex flex-wrap gap-0.5">
+                  {BAD_STATUS.filter((b) => u.status![b.id]).map((b) => (
+                    <span key={b.id} className="rounded-sm px-1 text-[9px] leading-[13px] font-bold text-white" style={{ background: b.color }} title={b.hint}>
+                      {b.label}
+                      {b.strength ? u.status![b.id] : ""}
+                    </span>
+                  ))}
+                </div>
+              )}
               {!hp && <div className="text-muted">{u.cond ? CONDITION_LABEL[u.cond] : u.side === "enemy" ? "상태 ?" : ""}</div>}
             </div>
           </div>

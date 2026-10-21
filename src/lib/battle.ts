@@ -4,6 +4,8 @@ import { doc, runTransaction as runFsTransaction } from "firebase/firestore";
 import { onValue, push, ref, runTransaction, set, update } from "firebase/database";
 import { derive } from "./ar/derive";
 import {
+  BAD_STATUS,
+  cleanup,
   CONDITION_LABEL,
   DAMAGE_LABEL,
   EFFECT_LABEL,
@@ -12,6 +14,7 @@ import {
   type DamageType,
   type EffectKind,
   type EffectResult,
+  type StatusMap,
   type TurnState,
 } from "./battleRules";
 import { sendMessage } from "./chat";
@@ -156,4 +159,42 @@ export function syncConditions(cid: string, tokens: Record<string, { charId?: st
     if ((t.cond ?? null) !== cond) patch[`battle/${cid}/tokens/${tid}/cond`] = cond;
   }
   if (Object.keys(patch).length) return update(ref(rtdb), patch);
+}
+
+// 라운드가 넘어갈 때 클린업 (GM 화면, 라운드마다 한 번만)
+//   저절로 풀리는 BS 를 지우고, 독은 강도×5 HP 로스 (방어 무시)
+export async function runCleanup(
+  ctx: { cid: string; uid: string; gmUid: string },
+  round: number,
+  tokens: Record<string, { name: string; charId?: string; status?: StatusMap }>,
+) {
+  const claim = await runTransaction(ref(rtdb, `battle/${ctx.cid}/meta/cleanedRound`), (cur) => ((cur ?? 0) >= round ? undefined : round));
+  if (!claim.committed) return;
+  const lines: string[] = [];
+  for (const [tid, t] of Object.entries(tokens)) {
+    if (!t.status) continue;
+    const { next, poison } = cleanup(t.status);
+    const cleared = Object.keys(t.status).filter((k) => !(k in next));
+    if (cleared.length) {
+      await set(ref(rtdb, `battle/${ctx.cid}/tokens/${tid}/status`), Object.keys(next).length ? next : null);
+      lines.push(`${t.name}: ${cleared.map((k) => BAD_STATUS.find((b) => b.id === k)?.label ?? k).join("·")} 해제`);
+    }
+    if (poison > 0 && t.charId) {
+      await applyAndReport(ctx, { tid, charId: t.charId, name: t.name }, { kind: "damage", amount: poison, dmgType: "pierce", from: "독", source: "클린업" });
+    }
+  }
+  await sendMessage(ctx.cid, {
+    uid: ctx.uid,
+    speaker: { name: "클린업", uid: ctx.uid },
+    kind: "system",
+    text: `🌙 라운드 ${round - 1} 클린업${lines.length ? " — " + lines.join(" / ") : ""}`,
+  });
+}
+
+// 자기 차례가 온 유닛의 스턴을 푼다
+export async function clearStunOnTurn(cid: string, tid: string, status?: StatusMap) {
+  if (!status?.stun) return;
+  const next = { ...status };
+  delete next.stun;
+  await set(ref(rtdb, `battle/${cid}/tokens/${tid}/status`), Object.keys(next).length ? next : null);
 }

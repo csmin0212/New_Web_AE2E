@@ -106,3 +106,38 @@ export function parseCost(cost: string): { mp: number; hp: number } | null {
   }
   return hit ? { mp, hp } : null;
 }
+
+// ── 배드 스테이터스 (아리안로드 2E, roll20/RULES.md 6장) ──
+//   strength: 강도가 있는 BS. clear: 저절로 풀리는 때
+export type BsId = "daze" | "awe" | "rage" | "stun" | "slip" | "poison" | "knockback" | "berserk" | "fear" | "weak" | "bind";
+export type BsDef = { id: BsId; label: string; color: string; strength?: boolean; clear?: "cleanup" | "own-turn"; hint: string };
+
+export const BAD_STATUS: BsDef[] = [
+  { id: "daze", label: "멍함", color: "#9aa4b5", clear: "cleanup", hint: "메이저 액션 판정 −1D · 클린업에 해제" },
+  { id: "awe", label: "위압", color: "#7b5cc4", hint: "메이저 액션 불가 · 마이너 액션으로 해제" },
+  { id: "rage", label: "격앙", color: "#e0573a", clear: "cleanup", hint: "건 캐릭터 이외 대상 메이저 판정 −2D · 클린업에 해제" },
+  { id: "stun", label: "스턴", color: "#e8c34a", clear: "own-turn", hint: "리액션 판정 −1D · 자기 차례가 오면 해제" },
+  { id: "slip", label: "슬립", color: "#4fa3c9", hint: "전투 이동·전력 이동·이탈 불가 · 무브 액션으로 해제" },
+  { id: "poison", label: "독", color: "#4fae5c", strength: true, hint: "클린업마다 강도×5 HP 로스 · 회복 스킬·아이템으로 해제" },
+  { id: "knockback", label: "넉백", color: "#c98a4f", strength: true, clear: "cleanup", hint: "강도×5 행동치 감소 · 클린업에 해제" },
+  { id: "berserk", label: "광전사화", color: "#c4243a", strength: true, hint: "공격 대미지 +강도D, 리액션 자동 실패 · 마이너 액션 또는 씬 종료" },
+  { id: "fear", label: "공포", color: "#5a5a8c", hint: "건 캐릭터 대상 메인 프로세스 −2D · 메인 프로세스 끝에 해제" },
+  { id: "weak", label: "쇠약", color: "#8c7a5a", strength: true, hint: "메이저 액션 후 강도×5 HP 로스 · 회복 스킬·아이템으로 해제" },
+  { id: "bind", label: "속박", color: "#6b6b6b", hint: "셋업 타이밍 사용 불가 · 셋업 끝에 해제" },
+];
+
+export type StatusMap = Partial<Record<BsId, number>>; // 값 = 강도 (강도 없는 BS 는 1)
+
+// 클린업: 저절로 풀리는 BS 를 지우고, 독 피해를 계산한다
+export function cleanup(status: StatusMap): { next: StatusMap; poison: number } {
+  const next: StatusMap = {};
+  for (const [id, v] of Object.entries(status) as [BsId, number][]) {
+    if (BAD_STATUS.find((b) => b.id === id)?.clear !== "cleanup") next[id] = v;
+  }
+  return { next, poison: (status.poison ?? 0) * 5 };
+}
+
+// 넉백이 깎은 행동치까지 반영한 행동치
+export function effectiveInit(init: number, status?: StatusMap): number {
+  return init - (status?.knockback ?? 0) * 5;
+}
