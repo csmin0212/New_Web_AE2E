@@ -295,7 +295,7 @@ export function ArSheetView({ character: c }: { character: Character }) {
             skills={sheet.skills}
             editing={editing}
             canUse={canEdit && !busy}
-            onUse={(s) => act(() => applySkill(ctx, c, s))}
+            onUse={(s) => act(async () => void (await applySkill(ctx, c, s)))}
             onChange={(skills) => patch({ skills })}
           />
         )}

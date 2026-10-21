@@ -310,3 +310,41 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+@layer components {
+/* 가로로 넘기는 칩 줄 — 가로 스크롤은 세로로도 잘라내므로, 떠오르는 칩·장식이 잘리지 않게 위아래 여유를 둔다 */
+.chip-row {
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 7px 2px 5px;
+  margin: -7px -2px -5px;
+  scrollbar-width: thin;
+}
+
+/* 눌리는 버튼처럼 바닥 그림자가 있고, 올리면 떠오른다 */
+.pop {
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.45);
+  transition: translate 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.pop:hover {
+  translate: 0 -2px;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.45), 0 0 0 1px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.pop:active {
+  translate: 0 1px;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
+}
+
+/* 대상으로 지정된 토큰 — 붉은 조준 고리가 천천히 돈다 */
+.target-ring {
+  border: 2px dashed #ff5a4a;
+  box-shadow: 0 0 10px rgba(255, 90, 74, 0.7);
+  animation: target-spin 4s linear infinite;
+}
+@keyframes target-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+}

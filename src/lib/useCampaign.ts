@@ -1,6 +1,6 @@
 "use client";
 
-import { collection, doc, onSnapshot, orderBy, query } from "firebase/firestore";
+import { collection, doc, onSnapshot, query, where } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { db } from "./firebase";
 import type { Campaign, Character, Member } from "./types";
@@ -30,14 +30,25 @@ export function useCampaign(cid: string, uid: string | undefined): CampaignState
         (snap) => setMembers(snap.docs.map((d) => d.data() as Member)),
         fail,
       ),
-      onSnapshot(
-        query(collection(db, "campaigns", cid, "characters"), orderBy("order")),
-        (snap) => setCharacters(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Character, "id">) }))),
-        fail,
-      ),
     ];
     return () => unsubs.forEach((u) => u());
   }, [cid, uid]);
+
+  // 캐릭터: GM 은 전부, 플레이어는 에너미를 뺀 것만 (보안 규칙도 같은 조건으로 막는다)
+  const gmUid = campaign?.gmUid;
+  useEffect(() => {
+    if (!uid || !gmUid) return;
+    const col = collection(db, "campaigns", cid, "characters");
+    const q = gmUid === uid ? col : query(col, where("kind", "in", ["pc", "npc"]));
+    return onSnapshot(
+      q,
+      (snap) =>
+        setCharacters(
+          snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Character, "id">) })).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
+        ),
+      () => setDenied(true),
+    );
+  }, [cid, uid, gmUid]);
 
   if (denied) return { status: "denied" };
   if (!campaign) return { status: "loading" };

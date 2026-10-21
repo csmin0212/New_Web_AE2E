@@ -73,7 +73,7 @@ export function SheetImport({
     for (const item of list) {
       if (isRoll20Export(item)) {
         const r = fromRoll20(item);
-        const k: Character["kind"] = r.sheet.kind === "enemy" ? "npc" : kind;
+        const k: Character["kind"] = r.sheet.kind === "enemy" ? "enemy" : kind;
         await addArCharacter(cid, { ar: r.sheet, hp: r.hp, mp: r.mp, fate: r.fate, portrait: r.avatar, kind: k, ownerUid: k === "pc" ? owner : null, order: order++ });
         names.push(r.sheet.profile.name);
       } else if (isAronMonster(item)) {
@@ -84,7 +84,7 @@ export function SheetImport({
           mp: { cur: r.mp, max: r.mp },
           fate: { cur: 0, max: 0 },
           portrait: r.avatar,
-          kind: "npc",
+          kind: "enemy",
           ownerUid: null,
           order: order++,
         });
@@ -114,7 +114,7 @@ export function SheetImport({
       drops: [],
       source: "manual",
     };
-    await addArCharacter(cid, { ar, hp: { cur: 30, max: 30 }, mp: { cur: 10, max: 10 }, fate: { cur: 0, max: 0 }, kind: "npc", ownerUid: null, order: nextOrder });
+    await addArCharacter(cid, { ar, hp: { cur: 30, max: 30 }, mp: { cur: 10, max: 10 }, fate: { cur: 0, max: 0 }, kind: "enemy", ownerUid: null, order: nextOrder });
     setBlankName("");
     return `${name} 추가됨 — 시트를 열어 ‘편집’으로 채워 주세요`;
   }
@@ -134,7 +134,8 @@ export function SheetImport({
     <div className="flex gap-2">
       <select className="input" value={kind} onChange={(e) => setKind(e.target.value as Character["kind"])}>
         <option value="pc">PC</option>
-        <option value="npc">NPC · 에너미</option>
+        <option value="npc">NPC</option>
+        <option value="enemy">에너미 (GM만 보기)</option>
       </select>
       {kind === "pc" && (
         <select className="input" value={ownerUid} onChange={(e) => setOwnerUid(e.target.value)}>
@@ -176,7 +177,7 @@ export function SheetImport({
           }}
         >
           <p className="text-[11px] text-muted">
-            Roll20에서 <code>!vtt-export</code> 로 만든 핸드아웃 내용, 또는 ARON 몬스터 JSON(배열도 가능)을 붙여넣으세요. 에너미 시트는 자동으로 NPC 로 들어가요.
+            Roll20에서 <code>!vtt-export</code> 로 만든 핸드아웃 내용, 또는 ARON 몬스터 JSON(배열도 가능)을 붙여넣으세요. 에너미 시트는 자동으로 에너미(GM만 보기)로 들어가요.
           </p>
           <textarea className="input min-h-28 font-mono text-[11px]" placeholder='{ "format": "roll20-character-export", ... }' value={json} onChange={(e) => setJson(e.target.value)} />
           {ownerPicker}

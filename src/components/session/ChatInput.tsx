@@ -1,15 +1,43 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { removeCharacter } from "@/lib/campaigns";
 import { sendMessage } from "@/lib/chat";
 import { parseChatInput } from "@/lib/chatCommand";
 import { findKeywordCutin, triggerCutin } from "@/lib/fx";
 import { roll } from "@/lib/dice";
+import { findCast, removeNpc, toggleCast } from "@/lib/scene";
 import { splitTitle } from "@/lib/stage";
 import type { Speaker } from "@/lib/types";
+import { useContextMenu, type MenuItem } from "../ContextMenu";
+import { CharacterEditDialog, NpcEditDialog } from "./EditDialogs";
+import { openSheet } from "./PartyBar";
 import { useSession } from "./SessionContext";
 
 type SpeakerOption = { key: string; speaker: Speaker; face?: string };
+
+// 화자 줄에서 숨긴 칩 (내 화면에서만, 지우지는 않음)
+function useHiddenSpeakers(cid: string) {
+  const storeKey = `vtt:hidden-speakers:${cid}`;
+  const [hidden, setHidden] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(storeKey) ?? "[]") as string[];
+    } catch {
+      return [];
+    }
+  });
+  function set(next: string[]) {
+    setHidden(next);
+    try {
+      localStorage.setItem(storeKey, JSON.stringify(next));
+    } catch {}
+  }
+  return {
+    hidden,
+    hide: (k: string) => set([...hidden.filter((x) => x !== k), k]),
+    show: (k: string) => set(hidden.filter((x) => x !== k)),
+  };
+}
 
 // 아래 입력 띠 — 화자 고르기 + 대사·명령 입력
 export function ChatInput() {
@@ -19,6 +47,10 @@ export function ChatInput() {
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
+  const menu = useContextMenu();
+  const { hidden, hide, show } = useHiddenSpeakers(cid);
+  const [editChar, setEditChar] = useState<string | null>(null);
+  const [editNpc, setEditNpc] = useState<string | null | undefined>(undefined); // null = 새로 만들기
 
   const options: SpeakerOption[] = useMemo(() => {
     const opts: SpeakerOption[] = [];
@@ -40,7 +72,8 @@ export function ChatInput() {
     return opts;
   }, [characters, isGM, myName, scene.npcs, user.uid]);
 
-  const current = options.find((o) => o.key === picked) ?? options[0];
+  const visible = options.filter((o) => !hidden.includes(o.key) || o.key === picked);
+  const current = options.find((o) => o.key === picked) ?? visible[0] ?? options[0];
   const speaker = current?.speaker ?? { name: myName, uid: user.uid };
 
   // 귓속말 대상: 참가자 이름 또는 캐릭터 이름 (NPC면 GM에게)
@@ -115,20 +148,75 @@ export function ChatInput() {
     }
   }
 
+  function chipMenu(o: SpeakerOption): MenuItem[] {
+    const items: MenuItem[] = [{ title: o.speaker.narrator ? "GM 서술" : o.speaker.name }];
+    const charId = o.key.startsWith("char:") ? o.key.slice(5) : null;
+    const npcKey = o.key.startsWith("npc:") ? o.key.slice(4) : null;
+    const who = { charId: charId ?? undefined, name: o.speaker.name, image: o.speaker.image };
+    if (charId) {
+      items.push({ label: "시트 열기", icon: "📜", onSelect: () => openSheet(charId) });
+      items.push({ label: "고치기", hint: "그림·색·이름", icon: "✎", onSelect: () => setEditChar(charId) });
+    }
+    if (npcKey) items.push({ label: "고치기", hint: "그림·색·이름", icon: "✎", onSelect: () => setEditNpc(npcKey) });
+    if (isGM && (charId || npcKey)) {
+      const on = !!findCast(scene, who);
+      items.push({ label: on ? "무대에서 내리기" : "무대에 계속 세우기", icon: on ? "▼" : "▲", onSelect: () => toggleCast(cid, scene, who) });
+    }
+    if (!o.speaker.narrator && o.key !== "self") {
+      items.push("sep", { label: "화자 줄에서 숨기기", hint: "내 화면만", icon: "◌", onSelect: () => hide(o.key) });
+    }
+    if (isGM && npcKey) {
+      items.push({
+        label: "NPC 화자 삭제",
+        icon: "✕",
+        danger: true,
+        onSelect: () => {
+          if (confirm(`NPC 화자 「${o.speaker.name}」을(를) 지울까요?`)) return removeNpc(cid, npcKey);
+        },
+      });
+    }
+    if (isGM && charId) {
+      items.push({
+        label: "캠페인에서 빼기",
+        icon: "✕",
+        danger: true,
+        onSelect: () => {
+          if (confirm(`${o.speaker.name}을(를) 캠페인에서 뺄까요? (보관함 원본은 그대로예요)`)) return removeCharacter(cid, charId);
+        },
+      });
+    }
+    return items;
+  }
+
+  function addMenu(): MenuItem[] {
+    const items: MenuItem[] = [];
+    if (isGM) items.push({ label: "NPC 화자 새로 만들기", icon: "＋", onSelect: () => setEditNpc(null) });
+    const hiddenOpts = options.filter((o) => hidden.includes(o.key));
+    if (hiddenOpts.length) {
+      if (items.length) items.push("sep");
+      items.push({ title: "숨긴 화자 다시 보이기" });
+      for (const o of hiddenOpts) items.push({ label: o.speaker.name, icon: "◉", onSelect: () => show(o.key) });
+    }
+    return items;
+  }
+  const canAdd = isGM || options.some((o) => hidden.includes(o.key));
+  const editingChar = characters.find((c) => c.id === editChar);
+
   return (
     <div className="min-w-0 flex-1">
-      <div className="mb-1.5 flex items-center gap-1.5 overflow-x-auto pb-0.5">
-        {options.map((o) => {
+      <div className="chip-row mb-1 items-center gap-1.5">
+        {visible.map((o) => {
           const on = o.key === current?.key;
           const { name } = splitTitle(o.speaker.name);
           return (
             <button
               key={o.key}
               onClick={() => setPicked(o.key)}
-              className={`flex shrink-0 items-center gap-1.5 rounded-full border py-0.5 pr-2.5 pl-0.5 text-xs transition ${
+              onContextMenu={(e) => menu.open(e, chipMenu(o))}
+              className={`pop flex shrink-0 items-center gap-1.5 rounded-full border py-0.5 pr-2.5 pl-0.5 text-xs ${
                 on ? "border-accent bg-accent/20 text-text" : "border-line bg-panel/70 text-muted hover:text-text"
               }`}
-              title={o.speaker.name}
+              title={`${o.speaker.name} — 우클릭: 고치기·무대·숨기기`}
             >
               {o.face ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -142,7 +230,22 @@ export function ChatInput() {
             </button>
           );
         })}
+        {canAdd && (
+          <button
+            className="pop grid h-7 w-7 shrink-0 place-items-center rounded-full border border-dashed border-line bg-panel/70 text-sm text-muted hover:text-text"
+            title={isGM ? "NPC 화자 추가 · 숨긴 화자 보이기" : "숨긴 화자 보이기"}
+            onClick={(e) => {
+              const r = e.currentTarget.getBoundingClientRect();
+              menu.open({ clientX: r.left, clientY: r.top - 4 }, addMenu());
+            }}
+          >
+            ＋
+          </button>
+        )}
       </div>
+      {menu.node}
+      {editingChar && <CharacterEditDialog character={editingChar} onClose={() => setEditChar(null)} />}
+      {editNpc !== undefined && <NpcEditDialog npcKey={editNpc} onClose={() => setEditNpc(undefined)} />}
       <div className="flex gap-2">
         <button className="btn shrink-0 px-2.5" title="판정 굴림 입력" onClick={() => setText((t) => (t.startsWith("/") ? t : "/c 2D+"))}>
           <span>🎲</span>

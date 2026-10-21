@@ -209,10 +209,22 @@
 .stage__bubble--solo {
   bottom: calc(var(--st-bottom) + 3%);
 }
+/* 비스듬한 말풍선 — 모양은 뒤판(::before)에만 깎는다. 말풍선 자체를 깎으면 위로 튀어나온 이름표가 잘린다 */
 [data-skin="slant"] .stage__bubble {
   border-radius: 0;
-  clip-path: polygon(0 6%, 100% 0, 98% 100%, 2% 94%);
+  background: transparent;
+  box-shadow: none;
+  isolation: isolate;
+  filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.35));
   padding-block: 26px 20px;
+}
+[data-skin="slant"] .stage__bubble::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--st-bubble);
+  clip-path: polygon(0 6%, 100% 0, 98% 100%, 2% 94%);
 }
 [data-skin="arcane"] .stage__bubble {
   border-radius: 18px;

@@ -2,6 +2,7 @@
 
 import { onValue, push, ref, remove, serverTimestamp, set, update } from "firebase/database";
 import { rtdb } from "./firebase";
+import type { TurnState } from "./battleRules";
 import type { CutinPreset, ScenePreset, TransitionState } from "./fx";
 import type { ThemeId } from "./themes";
 
@@ -10,6 +11,7 @@ import type { ThemeId } from "./themes";
 //   battle/{cid}/meta      그리드 크기·배경, 라운드, 차례
 //   battle/{cid}/tokens    토큰 정보 (GM)
 //   battle/{cid}/pos       토큰 위치 (GM 또는 토큰 주인)
+//   battle/{cid}/turn      지금 차례 (battle.ts)
 
 export type SceneMode = "talk" | "battle";
 export type Phase = "opening" | "middle" | "climax" | "ending" | "free";
@@ -65,19 +67,22 @@ export type Token = {
   ownerUid?: string;
   side: TokenSide;
   init: number; // 행동치
-  hp?: { cur: number; max: number }; // 시트와 연결 안 된 에너미용
+  hp?: { cur: number; max: number }; // 예전 시트 없는 에너미 (GM 화면에만 보인다)
+  cond?: "hurt" | "down"; // 에너미 상태 — 숫자 대신 플레이어에게 보여 준다 (GM 화면이 갱신)
 };
 export type BattleMeta = { cols: number; rows: number; background: string | null; round: number; turn: number };
 export type Battle = {
   meta: BattleMeta;
   tokens: Record<string, Token>;
   pos: Record<string, { x: number; y: number }>;
+  turn: TurnState;
 };
 
 export const DEFAULT_BATTLE: Battle = {
   meta: { cols: 16, rows: 10, background: null, round: 1, turn: 0 },
   tokens: {},
   pos: {},
+  turn: { actor: null, round: 1, acted: {} },
 };
 
 // Realtime DB 는 undefined 를 거부한다
@@ -110,8 +115,26 @@ export function removeCast(cid: string, key: string) {
 export function saveNpc(cid: string, npc: NpcPreset) {
   return push(ref(rtdb, `scene/${cid}/npcs`), clean(npc));
 }
+export function updateNpc(cid: string, key: string, npc: NpcPreset) {
+  return set(ref(rtdb, `scene/${cid}/npcs/${key}`), clean(npc));
+}
 export function removeNpc(cid: string, key: string) {
   return remove(ref(rtdb, `scene/${cid}/npcs/${key}`));
+}
+
+// 무대에 고정으로 서 있는지 — 캐릭터는 charId, NPC 화자는 이름으로 찾는다
+export function findCast(scene: Scene, who: { charId?: string; name: string }): string | null {
+  for (const [k, c] of Object.entries(scene.cast)) {
+    if (who.charId ? c.charId === who.charId : !c.charId && c.name === who.name) return k;
+  }
+  return null;
+}
+
+export function toggleCast(cid: string, scene: Scene, who: { charId?: string; name: string; image?: string }) {
+  const key = findCast(scene, who);
+  if (key) return removeCast(cid, key);
+  const slots = Object.values(scene.cast).map((c) => c.slot);
+  return addCast(cid, { name: who.name, image: who.image, charId: who.charId, slot: slots.length ? Math.max(...slots) + 1 : 0 });
 }
 
 // ── 전투 ────────────────────────────────────────────────
@@ -119,10 +142,12 @@ export function removeNpc(cid: string, key: string) {
 export function subscribeBattle(cid: string, cb: (b: Battle) => void) {
   return onValue(ref(rtdb, `battle/${cid}`), (snap) => {
     const v = (snap.val() ?? {}) as Partial<Battle>;
+    const meta = { ...DEFAULT_BATTLE.meta, ...(v.meta ?? {}) };
     cb({
-      meta: { ...DEFAULT_BATTLE.meta, ...(v.meta ?? {}) },
+      meta,
       tokens: v.tokens ?? {},
       pos: v.pos ?? {},
+      turn: { actor: v.turn?.actor ?? null, round: v.turn?.round ?? meta.round, acted: v.turn?.acted ?? {} },
     });
   });
 }

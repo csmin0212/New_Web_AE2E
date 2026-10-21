@@ -1,8 +1,9 @@
 "use client";
 
+import { parseCost } from "../battleRules";
 import { setGauge, updateAr, updateArWithSummary } from "../campaigns";
 import { sendMessage } from "../chat";
-import { roll } from "../dice";
+import { roll, type RollResult } from "../dice";
 import { evalExpr, rollInline } from "../inline";
 import type { Character, ChatCard, Speaker } from "../types";
 import { findRecovery } from "./recovery";
@@ -27,7 +28,7 @@ export async function rollArCheck(
   label: string,
   dm: DiceMod,
   opts: { fate?: number; secret?: boolean; check?: boolean } = {},
-) {
+): Promise<RollResult> {
   const fate = opts.fate ?? 0;
   if (fate > c.fate.cur) throw new Error("페이트가 모자라요.");
   const result = roll(`${dm.dice}D${dm.mod >= 0 ? "+" : ""}${dm.mod}`, { check: opts.check ?? true, fate, label });
@@ -37,16 +38,14 @@ export async function rollArCheck(
     { uid: ctx.uid, speaker: speakerOf(c, ctx.uid), kind: "roll", text: "", roll: result, secret: opts.secret || undefined },
     opts.secret ? [ctx.gmUid] : undefined,
   );
+  return result;
 }
 
-function numericCost(cost: string): number | null {
-  const m = cost.trim().match(/^(\d+)$/);
-  return m ? parseInt(m[1], 10) : null;
-}
-
-export async function applySkill(ctx: ActCtx, c: Character, skill: ArSkill) {
-  const cost = numericCost(skill.cost);
-  if (cost != null && cost > c.mp.cur) throw new Error(`MP가 모자라요. (필요 ${cost}, 남은 ${c.mp.cur})`);
+// 스킬 사용 — 카드를 남기고 코스트(MP·HP)를 깎는다. 굴린 결과가 든 카드를 돌려준다 (전투에서 대미지로 이어 쓰기)
+export async function applySkill(ctx: ActCtx, c: Character, skill: ArSkill): Promise<ChatCard> {
+  const cost = parseCost(skill.cost);
+  if (cost && cost.mp > c.mp.cur) throw new Error(`MP가 모자라요. (필요 ${cost.mp}, 남은 ${c.mp.cur})`);
+  if (cost && cost.hp > 0 && cost.hp >= c.hp.cur) throw new Error(`HP가 모자라요. (필요 ${cost.hp}, 남은 ${c.hp.cur})`);
   let extra: ChatCard["extra"];
   if (skill.roll) {
     try {
@@ -65,10 +64,23 @@ export async function applySkill(ctx: ActCtx, c: Character, skill: ArSkill) {
     ),
     body: rollInline(skill.effect),
     extra,
-    note: cost ? `MP ${cost} 소모 (${c.mp.cur} → ${c.mp.cur - cost})` : undefined,
+    note:
+      [cost?.mp && `MP ${cost.mp} 소모 (${c.mp.cur} → ${c.mp.cur - cost.mp})`, cost?.hp && `HP ${cost.hp} 소모 (${c.hp.cur} → ${c.hp.cur - cost.hp})`]
+        .filter(Boolean)
+        .join(" · ") || undefined,
   };
-  if (cost) await setGauge(ctx.cid, c.id, "mp", { ...c.mp, cur: c.mp.cur - cost });
+  if (cost?.mp) await setGauge(ctx.cid, c.id, "mp", { ...c.mp, cur: c.mp.cur - cost.mp });
+  if (cost?.hp) await setGauge(ctx.cid, c.id, "hp", { ...c.hp, cur: c.hp.cur - cost.hp });
   await sendMessage(ctx.cid, { uid: ctx.uid, speaker: speakerOf(c, ctx.uid), kind: "card", text: "", card });
+  return card;
+}
+
+// 카드 속에서 굴린 값들 (대미지·회복량 후보)
+export function rolledTotals(card: ChatCard): { label: string; total: number }[] {
+  const out: { label: string; total: number }[] = [];
+  for (const seg of card.body) if (typeof seg !== "string") out.push({ label: seg.expr, total: seg.total });
+  if (card.extra && typeof card.extra.result !== "string") out.push({ label: card.extra.result.expr, total: card.extra.result.total });
+  return out;
 }
 
 export async function applyItem(ctx: ActCtx, c: Character, item: ArItem) {

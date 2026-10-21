@@ -35,7 +35,7 @@ export function AddToCampaign({ user, entries, onClose }: { user: User; entries:
     try {
       let order = Date.now();
       for (const e of entries) {
-        const kind: Character["kind"] = kindMode === "auto" ? (e.kind === "pc" ? "pc" : "npc") : kindMode;
+        const kind: Character["kind"] = kindMode === "auto" ? e.kind : kindMode;
         await addEntryToCampaign(cid, e, { kind, ownerUid: null, order: order++ });
       }
       setResult(`${entries.length}명을 「${campaigns.find((c) => c.id === cid)?.name}」에 넣었어요.`);
@@ -70,9 +70,10 @@ export function AddToCampaign({ user, entries, onClose }: { user: User; entries:
             <label className="block text-xs text-muted">
               어디로
               <select className="input mt-1" value={kindMode} onChange={(e) => setKindMode(e.target.value as typeof kindMode)}>
-                <option value="auto">자동 (PC는 파티, 나머지는 NPC·에너미)</option>
+                <option value="auto">자동 (보관함 종류 그대로)</option>
                 <option value="pc">모두 파티(PC)</option>
-                <option value="npc">모두 NPC·에너미</option>
+                <option value="npc">모두 NPC (모두 볼 수 있음)</option>
+                <option value="enemy">모두 에너미 (GM만 볼 수 있음)</option>
               </select>
             </label>
             <p className="text-[11px] text-muted">PC 담당 플레이어는 캠페인 안에서 캐릭터 메뉴로 정해요.</p>

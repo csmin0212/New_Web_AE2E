@@ -50,8 +50,22 @@ service cloud.firestore {
         allow delete: if isGM(cid) || (signedIn() && request.auth.uid == uid);
       }
 
+      // 핸드아웃·저널 — 공개했거나, 나에게 보냈거나, 내가 쓴 것만 읽는다
+      match /journal/{jid} {
+        allow read: if isGM(cid) || (isMember(cid) && (
+          resource.data.shared == true
+          || request.auth.uid in resource.data.viewers
+          || resource.data.ownerUid == request.auth.uid));
+        allow create: if isMember(cid) && request.resource.data.ownerUid == request.auth.uid
+          && request.resource.data.viewers is list && request.resource.data.shared is bool;
+        allow update: if isGM(cid) || (isMember(cid) && resource.data.ownerUid == request.auth.uid
+          && request.resource.data.ownerUid == request.auth.uid);
+        allow delete: if isGM(cid) || (isMember(cid) && resource.data.ownerUid == request.auth.uid);
+      }
+
       match /characters/{chid} {
-        allow read: if isMember(cid);
+        // 에너미는 GM 만 (플레이어에게는 HP·능력치가 아예 내려가지 않는다)
+        allow read: if isGM(cid) || (isMember(cid) && resource.data.kind in ['pc', 'npc']);
         allow create, delete: if isGM(cid);
         // 플레이어는 자기 캐릭터의 HP·MP·페이트, 그림·색, 툴 안 시트(ar)만 바꿀 수 있다
         allow update: if isGM(cid)

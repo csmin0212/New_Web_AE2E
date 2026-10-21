@@ -88,6 +88,9 @@ export function TopBar({
             <span>연출</span>
           </button>
         )}
+        <Link href={`/c/${cid}/journal`} target="_blank" className="btn h-8 text-xs" title="핸드아웃·저널 (새 탭)">
+          <span>저널 ↗</span>
+        </Link>
         <button className={`${logOpen ? "btn-primary" : "btn"} h-8 text-xs`} onClick={onLog}>
           <span>기록</span>
         </button>

@@ -31,6 +31,10 @@
         "cutin": {
           ".write": "auth != null && root.child('members').child($cid).child(auth.uid).exists()",
           ".validate": "newData.hasChildren(['key', 'at', 'uid']) && newData.child('uid').val() === auth.uid && newData.child('key').isString() && newData.child('key').val().length <= 64 && root.child('scene').child($cid).child('cutins').child(newData.child('key').val()).exists()"
+        },
+        "show": {
+          ".write": "auth != null && root.child('gm').child($cid).val() === auth.uid",
+          ".validate": "!newData.exists() || (newData.hasChildren(['id', 'at']) && newData.child('id').isString())"
         }
       }
     },
@@ -48,6 +52,16 @@
           "$tid": {
             ".write": "auth != null && root.child('battle').child($cid).child('tokens').child($tid).child('ownerUid').val() === auth.uid",
             ".validate": "!newData.exists() || (newData.hasChildren(['x', 'y']) && newData.child('x').isNumber() && newData.child('y').isNumber())"
+          }
+        },
+        "turn": {
+          ".write": "auth != null && (root.child('gm').child($cid).val() === auth.uid || root.child('battle').child($cid).child('tokens').child(data.child('actor').val() + '').child('ownerUid').val() === auth.uid)",
+          ".validate": "newData.hasChildren(['round']) && newData.child('round').isNumber()"
+        },
+        "effects": {
+          "$eid": {
+            ".write": "auth != null && ((!data.exists() && root.child('members').child($cid).child(auth.uid).exists() && newData.child('uid').val() === auth.uid) || (!newData.exists() && root.child('gm').child($cid).val() === auth.uid))",
+            ".validate": "!newData.exists() || (newData.hasChildren(['uid', 'kind', 'amount', 'targets', 'at']) && newData.child('amount').isNumber() && newData.child('amount').val() >= 0 && newData.child('amount').val() <= 9999)"
           }
         }
       }

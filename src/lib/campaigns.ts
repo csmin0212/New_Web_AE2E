@@ -215,6 +215,12 @@ export async function updateCharacter(
   await updateDoc(doc(db, "campaigns", cid, "characters", charId), data);
 }
 
+// 이름 바꾸기 — 툴 안 시트가 있으면 시트 이름과 요약을 같이 바꾼다 (GM)
+export async function renameCharacter(cid: string, c: Character, name: string) {
+  if (c.ar) return updateArWithSummary(cid, c, { ...c.ar, profile: { ...c.ar.profile, name } });
+  await updateDoc(doc(db, "campaigns", cid, "characters", c.id), { "sheet.name": name });
+}
+
 export async function removeCharacter(cid: string, charId: string) {
   await deleteDoc(doc(db, "campaigns", cid, "characters", charId));
 }

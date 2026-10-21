@@ -28,7 +28,7 @@ export type Gauge = { cur: number; max: number };
 // Firestore campaigns/{cid}/characters/{chid}
 export type Character = {
   id: string;
-  kind: "pc" | "npc";
+  kind: "pc" | "npc" | "enemy"; // enemy 는 GM 만 읽을 수 있다 (HP·능력치 비공개)
   ownerUid: string | null; // 조작 권한이 있는 플레이어 (GM은 항상 가능)
   sheet: ParsedSheet; // 요약 (구글 시트 사본, 또는 ar 에서 만든 요약) — 이름·능력치 표시에 쓴다
   ar?: ArSheet; // 툴 안 시트 (Roll20·ARON 가져오기, 직접 만든 에너미). 있으면 이걸로 굴린다

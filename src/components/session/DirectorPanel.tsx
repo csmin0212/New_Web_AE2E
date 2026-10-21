@@ -17,7 +17,11 @@ import {
   type TokenSide,
 } from "@/lib/scene";
 import { derive } from "@/lib/ar/derive";
-import { addEntryToCampaign, subscribeLibrary, type LibraryEntry } from "@/lib/library";
+import { setTurn } from "@/lib/battle";
+import { initiativeOrder } from "@/lib/battleRules";
+import { addArCharacter } from "@/lib/campaigns";
+import { addEntryToCampaign, blankEntry, subscribeLibrary, type LibraryEntry } from "@/lib/library";
+import type { Character } from "@/lib/types";
 import { splitTitle } from "@/lib/stage";
 import { THEMES } from "@/lib/themes";
 import { SheetImport } from "../SheetImport";
@@ -312,7 +316,8 @@ function BattleSection() {
   const { meta } = battle;
   const [pick, setPick] = useState("");
   const [enemy, setEnemy] = useState({ name: "", image: "", hp: "30", init: "8" });
-  const tokens = Object.entries(battle.tokens).sort((a, b) => b[1].init - a[1].init);
+  const tokens = initiativeOrder(Object.entries(battle.tokens).map(([id, t]) => ({ ...t, id }))).map((t) => [t.id, t] as const);
+  const [busy, setBusy] = useState(false);
 
   // 비어 있는 칸 하나 (왼쪽 위부터)
   function freeCell(side: TokenSide) {
@@ -327,7 +332,7 @@ function BattleSection() {
       <div className="grid grid-cols-3 gap-1.5 text-xs">
         <NumField label="가로 칸" value={meta.cols} min={4} max={40} onSave={(v) => updateBattleMeta(cid, { cols: v })} />
         <NumField label="세로 칸" value={meta.rows} min={4} max={30} onSave={(v) => updateBattleMeta(cid, { rows: v })} />
-        <NumField label="라운드" value={meta.round} min={1} max={99} onSave={(v) => updateBattleMeta(cid, { round: v, turn: 0 })} />
+        <NumField label="라운드" value={battle.turn.round} min={1} max={99} onSave={(v) => setTurn(cid, { ...battle.turn, round: v })} />
       </div>
       <TextField
         label="전장 그림 (한 칸 = 5m)"
@@ -381,7 +386,7 @@ function BattleSection() {
           onClick={() => {
             const c = characters.find((x) => x.id === pick);
             if (!c) return;
-            const side: TokenSide = c.kind === "pc" ? "pc" : "enemy";
+            const side = sideOf(c);
             // 툴 안 시트가 있으면 계산된 행동치, 구글 시트면 【민첩】+【감지】
             const agi = c.sheet.stats.find((s) => s.key === "AGI")?.mod ?? 0;
             const per = c.sheet.stats.find((s) => s.key === "PER")?.mod ?? 0;
@@ -401,25 +406,36 @@ function BattleSection() {
 
       <form
         className="mt-3 space-y-1 rounded border border-dashed border-line p-2"
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
-          if (!enemy.name.trim()) return;
-          const hp = parseInt(enemy.hp, 10) || 0;
-          addToken(
-            cid,
-            {
-              name: enemy.name.trim(),
-              image: enemy.image.trim() || undefined,
-              side: "enemy",
-              init: parseInt(enemy.init, 10) || 0,
-              hp: hp > 0 ? { cur: hp, max: hp } : undefined,
-            },
-            freeCell("enemy"),
-          );
-          setEnemy((s) => ({ ...s, name: "" }));
+          if (!enemy.name.trim() || busy) return;
+          setBusy(true);
+          // 간이 에너미도 GM 만 읽는 에너미 캐릭터로 만든다 (HP 가 플레이어에게 새지 않게). 나중에 시트를 채울 수 있다
+          const name = enemy.name.trim();
+          const hp = Math.max(1, parseInt(enemy.hp, 10) || 1);
+          const init = parseInt(enemy.init, 10) || 0;
+          const image = enemy.image.trim() || undefined;
+          const base = blankEntry("enemy", name);
+          try {
+            const charId = await addArCharacter(cid, {
+              ar: { ...base.ar, fixed: { ...base.ar.fixed, action: init } },
+              hp: { cur: hp, max: hp },
+              mp: { cur: 0, max: 0 },
+              fate: { cur: 0, max: 0 },
+              portrait: image,
+              token: image,
+              kind: "enemy",
+              ownerUid: null,
+              order: Date.now(),
+            });
+            await addToken(cid, { name, image, charId, side: "enemy", init }, freeCell("enemy"));
+            setEnemy((s) => ({ ...s, name: "" }));
+          } finally {
+            setBusy(false);
+          }
         }}
       >
-        <div className="text-xs font-bold">시트 없는 에너미</div>
+        <div className="text-xs font-bold">간이 에너미 (이름·HP·행동치만)</div>
         <input className="input" placeholder="고블린 A" value={enemy.name} onChange={(e) => setEnemy({ ...enemy, name: e.target.value })} />
         <input className="input" placeholder="토큰 그림 (선택)" value={enemy.image} onChange={(e) => setEnemy({ ...enemy, image: e.target.value })} list="recent-urls" />
         <div className="flex gap-1 text-xs">
@@ -436,6 +452,13 @@ function BattleSection() {
       </form>
     </Section>
   );
+}
+
+// 토큰 편: PC → 아군 테두리, 에너미(또는 에너미 시트를 가진 옛 NPC) → 적
+function sideOf(c: Character): TokenSide {
+  if (c.kind === "pc") return "pc";
+  if (c.kind === "enemy" || c.ar?.kind === "enemy") return "enemy";
+  return "ally";
 }
 
 function NumField({ label, value, min, max, onSave }: { label: string; value: number; min: number; max: number; onSave: (v: number) => void }) {
@@ -497,11 +520,11 @@ function LibrarySection() {
               <span className="h-6 w-6 rounded-full bg-panel-2" />
             )}
             <span className="min-w-0 flex-1 truncate">{e.name}</span>
-            <span className="text-muted">{e.kind === "pc" ? "PC" : e.kind === "npc" ? "NPC" : "에너미"}</span>
+            <span className="shrink-0 whitespace-nowrap text-muted">{e.kind === "pc" ? "PC" : e.kind === "npc" ? "NPC" : "에너미"}</span>
             <button
               className="btn px-2 py-0 text-[11px]"
               onClick={async () => {
-                await addEntryToCampaign(cid, e, { kind: e.kind === "pc" ? "pc" : "npc", ownerUid: null, order: Date.now() });
+                await addEntryToCampaign(cid, e, { kind: e.kind, ownerUid: null, order: Date.now() });
                 setAdded(e.name);
               }}
             >

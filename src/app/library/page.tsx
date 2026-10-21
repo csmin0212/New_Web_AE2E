@@ -156,7 +156,7 @@ export default function LibraryPage() {
                 </div>
                 <div className="p-2">
                   <div className="flex items-center gap-1">
-                    <span className="rounded bg-panel-2 px-1 text-[10px] text-muted">{KIND_LABEL[e.kind]}</span>
+                    <span className="shrink-0 rounded bg-panel-2 px-1 text-[10px] whitespace-nowrap text-muted">{KIND_LABEL[e.kind]}</span>
                     <span className="font-display truncate font-bold" style={{ color: e.color }}>
                       {e.name}
                     </span>

@@ -9,6 +9,8 @@ import { ChatLog } from "@/components/session/ChatLog";
 import { DirectorPanel } from "@/components/session/DirectorPanel";
 import { PartyBar } from "@/components/session/PartyBar";
 import { CutinOverlay, TransitionOverlay } from "@/components/session/FxOverlays";
+import { GmAutomation } from "@/components/session/GmAutomation";
+import { HandoutPopup } from "@/components/session/HandoutPopup";
 import { PhaseCutin } from "@/components/session/PhaseCutin";
 import { ResizeHandle, useResizable } from "@/components/session/Resizable";
 import { SessionProvider, useSession } from "@/components/session/SessionContext";
@@ -89,6 +91,8 @@ function SessionLayout() {
         <PartyBar />
         <ChatInput />
       </footer>
+      {isGM && <GmAutomation />}
+      <HandoutPopup />
       <PhaseCutin />
       <TransitionOverlay />
       <CutinOverlay />
