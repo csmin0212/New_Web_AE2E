@@ -1,0 +1,556 @@
+/*
+ * 페르소나식 화면 연출 (FxEvents.tsx)
+ *   --dur: 연출 길이, --fx: 인물 색 (없으면 테마 강조색)
+ *   모두 화면 맨 위에 잠깐 덮였다가 사라진다. 누르면 건너뛴다.
+ */
+.fxe {
+  --c: var(--fx, var(--accent));
+  position: fixed;
+  inset: 0;
+  z-index: 85;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  cursor: pointer;
+  pointer-events: auto;
+  animation: fxe-life var(--dur) ease both;
+  font-family: var(--font-latin), var(--font-display), sans-serif;
+  color: #fff;
+}
+@keyframes fxe-life {
+  0% {
+    opacity: 0;
+  }
+  6%,
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+.fxe-big,
+.fxe-sub {
+  position: absolute;
+  left: 0;
+  right: 0;
+  text-align: center;
+  white-space: nowrap;
+}
+.fxe-big {
+  top: 50%;
+  translate: 0 -50%;
+  font-size: clamp(40px, 9vw, 120px);
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-shadow: 0 6px 0 rgba(0, 0, 0, 0.45);
+}
+.fxe-big span {
+  display: inline-block;
+}
+.fxe-sub {
+  top: calc(50% + clamp(34px, 6vw, 78px));
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(14px, 2vw, 22px);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
+}
+
+/* ── 전투 개시: 하얀 섬광 → 사선 베기 세 줄 → 글자가 쾅 ── */
+.fxe--encounter {
+  background: rgba(0, 0, 0, 0.55);
+}
+.fxe-flash {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  animation: fxe-flash 0.5s ease-out both;
+}
+@keyframes fxe-flash {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+.fxe-slash {
+  position: absolute;
+  left: -20%;
+  right: -20%;
+  top: 46%;
+  height: 10px;
+  background: var(--c);
+  box-shadow: 0 0 24px var(--c);
+  rotate: -14deg;
+  transform-origin: left;
+  animation: fxe-slash 0.35s 0.15s cubic-bezier(0.7, 0, 0.3, 1) both;
+}
+.fxe-slash--2 {
+  top: 30%;
+  height: 4px;
+  background: #fff;
+  animation-delay: 0.25s;
+}
+.fxe-slash--3 {
+  top: 64%;
+  height: 6px;
+  animation-delay: 0.32s;
+}
+@keyframes fxe-slash {
+  from {
+    scale: 0 1;
+  }
+}
+.fxe--encounter .fxe-big {
+  animation: fxe-slam 0.45s 0.35s cubic-bezier(0.2, 1.4, 0.4, 1) both, fxe-shake 0.3s 0.8s linear 2;
+}
+.fxe--encounter .fxe-sub {
+  animation: fxe-up 0.4s 0.7s ease both;
+}
+@keyframes fxe-slam {
+  from {
+    scale: 3;
+    opacity: 0;
+    filter: blur(8px);
+  }
+}
+@keyframes fxe-shake {
+  25% {
+    translate: -4px calc(-50% + 3px);
+  }
+  75% {
+    translate: 4px calc(-50% - 3px);
+  }
+}
+@keyframes fxe-up {
+  from {
+    opacity: 0;
+    translate: 0 14px;
+  }
+}
+
+/* ── 라운드: 양쪽에서 선이 모여 글자 ── */
+.fxe--round {
+  pointer-events: none;
+}
+.fxe-line {
+  position: absolute;
+  top: 50%;
+  height: 3px;
+  width: 50%;
+  background: linear-gradient(90deg, transparent, var(--c));
+  animation: fxe-line 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.fxe-line--l {
+  left: 0;
+  margin-top: -50px;
+}
+.fxe-line--r {
+  right: 0;
+  margin-top: 46px;
+  background: linear-gradient(270deg, transparent, var(--c));
+  animation-name: fxe-line-r;
+}
+@keyframes fxe-line {
+  from {
+    translate: -100% 0;
+  }
+}
+@keyframes fxe-line-r {
+  from {
+    translate: 100% 0;
+  }
+}
+.fxe--round .fxe-big {
+  font-size: clamp(34px, 7vw, 84px);
+  color: #fff;
+  -webkit-text-stroke: 2px var(--c);
+  animation: fxe-spread 0.6s 0.15s ease both;
+}
+@keyframes fxe-spread {
+  from {
+    letter-spacing: 0.6em;
+    opacity: 0;
+  }
+}
+
+/* ── 차례: 사선 띠가 왼쪽에서 휙 → 멈칫 → 오른쪽으로 빠진다 ── */
+.fxe--turn,
+.fxe--banner {
+  pointer-events: none;
+}
+.fxe-band {
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  top: 50%;
+  height: clamp(90px, 16vh, 150px);
+  translate: 0 -50%;
+  rotate: -6deg;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--c) 85%, #000), var(--c) 40%, color-mix(in srgb, var(--c) 80%, #fff));
+  box-shadow:
+    0 0 0 4px #000,
+    0 0 0 8px #fff,
+    0 20px 50px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  animation: fxe-band var(--dur) cubic-bezier(0.7, 0, 0.3, 1) both;
+}
+.fxe--turn.is-enemy .fxe-band {
+  --c: #d8263a;
+}
+@keyframes fxe-band {
+  0% {
+    translate: -110% -50%;
+  }
+  22%,
+  78% {
+    translate: 0 -50%;
+  }
+  100% {
+    translate: 110% -50%;
+  }
+}
+.fxe-face {
+  width: clamp(70px, 12vh, 120px);
+  height: clamp(70px, 12vh, 120px);
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: 50% 15%;
+  border: 4px solid #fff;
+  rotate: 6deg;
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.4);
+}
+.fxe-band-text {
+  position: relative;
+  rotate: 6deg;
+}
+.fxe-band .fxe-big,
+.fxe-band .fxe-sub {
+  position: static;
+  translate: none;
+  text-align: left;
+}
+.fxe-band .fxe-big {
+  font-size: clamp(32px, 6vw, 72px);
+}
+.fxe--turn.is-mine .fxe-big {
+  color: #fff;
+  text-shadow:
+    4px 4px 0 #000,
+    0 0 20px rgba(255, 255, 255, 0.6);
+}
+
+/* ── 크리티컬·총공격: 검은 띠 + 하프톤 + 얼굴 컷 + 글자가 하나씩 튄다 ── */
+.fxe--critical,
+.fxe--allout {
+  background: color-mix(in srgb, var(--c) 30%, rgba(0, 0, 0, 0.7));
+}
+.fxe-bars {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(#000 0 0) top / 100% 14% no-repeat,
+    linear-gradient(#000 0 0) bottom / 100% 14% no-repeat;
+  animation: fxe-bars 0.35s ease-out both;
+}
+@keyframes fxe-bars {
+  from {
+    background-size:
+      100% 0,
+      100% 0;
+  }
+}
+.fxe-halftone {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.22) 1.6px, transparent 2px) 0 0 / 12px 12px;
+  mask-image: radial-gradient(ellipse at 70% 50%, #000 0%, transparent 70%);
+  animation: fxe-drift 2s linear both;
+}
+@keyframes fxe-drift {
+  to {
+    background-position: 40px 20px;
+  }
+}
+.fxe-cut {
+  position: absolute;
+  right: 4%;
+  top: 14%;
+  height: 72%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  object-position: 50% 12%;
+  clip-path: polygon(18% 0, 100% 0, 82% 100%, 0 100%);
+  filter: drop-shadow(0 0 0 #fff) contrast(1.1);
+  animation: fxe-cut 0.45s 0.1s cubic-bezier(0.2, 0.9, 0.2, 1) both;
+}
+@keyframes fxe-cut {
+  from {
+    translate: 60% 0;
+    opacity: 0;
+  }
+}
+.fxe--critical .fxe-big,
+.fxe--allout .fxe-big {
+  left: 4%;
+  right: auto;
+  text-align: left;
+  color: var(--c);
+  -webkit-text-stroke: 3px #fff;
+  paint-order: stroke fill;
+  rotate: -8deg;
+}
+.fxe--critical .fxe-big span,
+.fxe--allout .fxe-big span,
+.fxe--victory .fxe-big span,
+.fxe--levelup .fxe-big span {
+  animation: fxe-pop 0.35s calc(0.25s + var(--i) * 45ms) cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+@keyframes fxe-pop {
+  from {
+    scale: 0;
+    opacity: 0;
+    rotate: -30deg;
+  }
+}
+.fxe--critical .fxe-sub,
+.fxe--allout .fxe-sub {
+  left: 6%;
+  right: auto;
+  text-align: left;
+  rotate: -8deg;
+  animation: fxe-up 0.4s 0.7s ease both;
+}
+.fxe--allout .fxe-big {
+  color: #ffe14d;
+  -webkit-text-stroke: 4px #000;
+  animation: fxe-shake 0.2s 0.9s linear 4;
+}
+
+/* ── 펌블: 색이 빠지고 글자가 하나씩 떨어진다 ── */
+.fxe--fumble {
+  backdrop-filter: grayscale(1) brightness(0.7);
+  background: rgba(20, 10, 30, 0.4);
+}
+.fxe--fumble .fxe-big {
+  color: #b9a7cf;
+}
+.fxe--fumble .fxe-big span {
+  animation: fxe-drop 0.9s calc(0.5s + var(--i) * 70ms) cubic-bezier(0.5, 0, 0.9, 0.4) both;
+}
+@keyframes fxe-drop {
+  60% {
+    translate: 0 6px;
+    rotate: 8deg;
+  }
+  to {
+    translate: 0 40vh;
+    rotate: 40deg;
+    opacity: 0;
+  }
+}
+.fxe--fumble .fxe-sub {
+  color: #b9a7cf;
+}
+
+/* ── 승리·레벨 업: 회전하는 빛살 + 반짝이 + 금빛 글자 ── */
+.fxe--victory,
+.fxe--levelup {
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.35), rgba(0, 0, 0, 0.75));
+}
+.fxe-rays {
+  position: absolute;
+  width: 160vmax;
+  height: 160vmax;
+  background: repeating-conic-gradient(rgba(255, 220, 120, 0.22) 0 6deg, transparent 6deg 18deg);
+  mask-image: radial-gradient(circle, #000 0%, transparent 55%);
+  animation: fxe-spin 8s linear infinite, fxe-up 0.6s ease both;
+}
+@keyframes fxe-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+.fxe-sparkle {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(2px 2px at 20% 30%, #fff, transparent),
+    radial-gradient(2px 2px at 75% 25%, #ffe9a8, transparent),
+    radial-gradient(3px 3px at 60% 70%, #fff, transparent),
+    radial-gradient(2px 2px at 35% 80%, #ffe9a8, transparent),
+    radial-gradient(2px 2px at 85% 60%, #fff, transparent);
+  animation: fxe-twinkle 1.2s ease-in-out infinite alternate;
+}
+@keyframes fxe-twinkle {
+  to {
+    opacity: 0.3;
+    translate: 0 -12px;
+  }
+}
+/* 글자마다 움직이므로 금빛은 글자 하나하나에 입힌다 (부모에 clip 하면 사라진다) */
+.fxe--victory .fxe-big,
+.fxe--levelup .fxe-big {
+  filter: drop-shadow(0 4px 0 #6b3d00) drop-shadow(0 0 20px rgba(255, 200, 80, 0.6));
+  text-shadow: none;
+}
+.fxe--victory .fxe-big span,
+.fxe--levelup .fxe-big span {
+  background: linear-gradient(180deg, #fff6d0, #ffd34d 45%, #c98a12);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.fxe--victory .fxe-sub,
+.fxe--levelup .fxe-sub {
+  letter-spacing: 0.5em;
+  animation: fxe-spread 0.9s 0.8s ease both;
+}
+.fxe--levelup .fxe-big {
+  animation: fxe-rise 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes fxe-rise {
+  from {
+    translate: 0 30%;
+    opacity: 0;
+  }
+}
+
+/* ── 패배: 어두워지며 금이 간다 ── */
+.fxe--defeat {
+  background: rgba(0, 0, 0, 0.82);
+}
+.fxe-crack {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(115deg, transparent 49.6%, rgba(255, 255, 255, 0.5) 50%, transparent 50.4%),
+    linear-gradient(62deg, transparent 49.7%, rgba(255, 255, 255, 0.35) 50%, transparent 50.3%),
+    linear-gradient(160deg, transparent 49.8%, rgba(255, 255, 255, 0.3) 50%, transparent 50.2%);
+  animation: fxe-flash 0.2s 0.3s reverse both;
+}
+.fxe--defeat .fxe-big {
+  color: #8a1b26;
+  letter-spacing: 0.25em;
+  font-style: normal;
+}
+.fxe--defeat .fxe-big span {
+  animation: fxe-up 1s calc(0.3s + var(--i) * 90ms) ease both;
+}
+.fxe--defeat .fxe-sub {
+  color: #bbb;
+  animation: fxe-up 1s 1.4s ease both;
+}
+
+/* ── 경고: 위아래 경고 띠가 흐르고 글자가 깜빡인다 ── */
+.fxe--warning {
+  background: rgba(60, 0, 0, 0.55);
+  animation:
+    fxe-life var(--dur) ease both,
+    fxe-redpulse 0.8s ease-in-out infinite;
+}
+@keyframes fxe-redpulse {
+  50% {
+    background-color: rgba(120, 0, 0, 0.6);
+  }
+}
+.fxe-hazard {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 44px;
+  background: repeating-linear-gradient(-45deg, #ffcc00 0 22px, #111 22px 44px);
+  background-size: 62px 62px;
+  animation: fxe-stripe 1s linear infinite;
+  box-shadow: 0 0 24px rgba(255, 0, 0, 0.5);
+}
+.fxe-hazard--top {
+  top: 26%;
+}
+.fxe-hazard--bottom {
+  bottom: 26%;
+  animation-direction: reverse;
+}
+@keyframes fxe-stripe {
+  to {
+    background-position: 62px 0;
+  }
+}
+.fxe--warning .fxe-big {
+  color: #ff3344;
+  font-style: normal;
+  letter-spacing: 0.3em;
+  text-shadow:
+    0 0 20px #f00,
+    0 0 2px #fff;
+  animation: fxe-blink 0.5s steps(2) infinite;
+}
+@keyframes fxe-blink {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* ── 챕터 제목: 검은 화면, 선이 그어지고 제목이 떠오른다 ── */
+.fxe--chapter {
+  background: #000;
+}
+.fxe--chapter .fxe-sub {
+  top: calc(50% - 56px);
+  font-family: var(--font-latin), serif;
+  letter-spacing: 0.6em;
+  color: var(--c);
+  animation: fxe-spread 1.2s 0.3s ease both;
+}
+.fxe-rule {
+  position: absolute;
+  top: calc(50% - 26px);
+  left: 30%;
+  right: 30%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--c), transparent);
+  animation: fxe-line 1s 0.5s ease both;
+  transform-origin: center;
+}
+.fxe--chapter .fxe-big {
+  top: calc(50% + 24px);
+  font-family: var(--font-display), serif;
+  font-style: normal;
+  font-size: clamp(30px, 6vw, 72px);
+  text-shadow: 0 0 30px color-mix(in srgb, var(--c) 60%, transparent);
+  animation: fxe-up 1.2s 0.9s ease both;
+}
+
+/* ── 띠 문구 ── */
+.fxe--banner .fxe-band {
+  rotate: 0deg;
+  height: clamp(70px, 12vh, 110px);
+}
+.fxe--banner .fxe-band-text {
+  rotate: 0deg;
+  text-align: center;
+}
+.fxe--banner .fxe-big {
+  font-family: var(--font-display), sans-serif;
+  font-style: normal;
+  font-size: clamp(26px, 4.5vw, 52px);
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fxe,
+  .fxe * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+  .fxe {
+    animation: none;
+  }
+}

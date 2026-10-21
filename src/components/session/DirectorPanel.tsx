@@ -25,6 +25,7 @@ import type { Character } from "@/lib/types";
 import { splitTitle } from "@/lib/stage";
 import { THEMES } from "@/lib/themes";
 import { SheetImport } from "../SheetImport";
+import { AnimationsSection } from "./AnimationsSection";
 import { CutinsSection, ScenesSection } from "./FxSections";
 import { ResizeHandle, useResizable } from "./Resizable";
 import { useSession } from "./SessionContext";
@@ -142,6 +143,7 @@ export function DirectorPanel({ onClose }: { onClose: () => void }) {
 
         <ScenesSection Section={Section} />
         <CutinsSection Section={Section} />
+        <AnimationsSection Section={Section} />
         <CastSection />
         <NpcSection />
         <BattleSection />

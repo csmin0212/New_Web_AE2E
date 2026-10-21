@@ -10,6 +10,7 @@ import { ChatLog } from "@/components/session/ChatLog";
 import { DirectorPanel } from "@/components/session/DirectorPanel";
 import { PartyBar } from "@/components/session/PartyBar";
 import { CutinOverlay, TransitionOverlay } from "@/components/session/FxOverlays";
+import { FxEvents } from "@/components/session/FxEvents";
 import { GmAutomation } from "@/components/session/GmAutomation";
 import { HandoutPopup } from "@/components/session/HandoutPopup";
 import { PhaseCutin } from "@/components/session/PhaseCutin";
@@ -92,6 +93,7 @@ function SessionLayout() {
       </footer>
       {isGM && <GmAutomation />}
       <HandoutPopup />
+      <FxEvents />
       <PhaseCutin />
       <TransitionOverlay />
       <CutinOverlay />

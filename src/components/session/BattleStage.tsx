@@ -289,6 +289,25 @@ function Grid({
     };
   }
 
+  // HP 가 바뀌면 토큰 위로 숫자가 튄다 (시트를 읽을 수 있는 유닛만 — 플레이어에게 에너미는 안 보인다)
+  const hpKey = units.map((u) => `${u.id}:${u.character?.hp.cur ?? ""}`).join("|");
+  const [hpSnap, setHpSnap] = useState<{ key: string; n: number; map: Record<string, number> } | null>(null);
+  const [pops, setPops] = useState<{ id: string; tid: string; v: number }[]>([]);
+  if (hpSnap?.key !== hpKey) {
+    const map: Record<string, number> = {};
+    const fresh: { id: string; tid: string; v: number }[] = [];
+    const n = (hpSnap?.n ?? 0) + 1;
+    for (const u of units) {
+      const cur = u.character?.hp.cur;
+      if (cur == null) continue;
+      map[u.id] = cur;
+      const prev = hpSnap?.map[u.id];
+      if (prev != null && prev !== cur) fresh.push({ id: `${n}-${u.id}`, tid: u.id, v: cur - prev });
+    }
+    setHpSnap({ key: hpKey, n, map });
+    if (fresh.length) setPops((p) => [...p.slice(-8), ...fresh]);
+  }
+
   const dragRef = useRef(drag);
   useEffect(() => {
     dragRef.current = drag;
@@ -456,6 +475,21 @@ function Grid({
             })}
           </svg>
         )}
+        {/* 대미지·회복 숫자 */}
+        {pops.map((p) => {
+          const u = units.find((x) => x.id === p.tid);
+          if (!u) return null;
+          return (
+            <span
+              key={p.id}
+              className={`dmg-pop pointer-events-none absolute z-30 ${p.v < 0 ? "dmg-pop--hurt" : "dmg-pop--heal"}`}
+              style={{ left: u.x * cell + cell / 2, top: u.y * cell }}
+              onAnimationEnd={() => setPops((l) => l.filter((x) => x.id !== p.id))}
+            >
+              {p.v > 0 ? `+${p.v}` : p.v}
+            </span>
+          );
+        })}
         {/* 핑 */}
         {pings.map((p) => (
           <div key={p.key} className="vtt-ping pointer-events-none absolute z-30" style={{ left: p.at.x * cell + cell / 2, top: p.at.y * cell + cell / 2 }}>

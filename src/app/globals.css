@@ -446,4 +446,41 @@ body {
     opacity: 0;
   }
 }
+
+/* 토큰 위로 튀는 대미지·회복 숫자 */
+.dmg-pop {
+  translate: -50% 0;
+  font-family: var(--font-latin), sans-serif;
+  font-size: 22px;
+  font-weight: 900;
+  font-style: italic;
+  -webkit-text-stroke: 3px #000;
+  paint-order: stroke fill;
+  white-space: nowrap;
+  animation: dmg-pop 1.4s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.dmg-pop--hurt {
+  color: #ff4757;
+}
+.dmg-pop--heal {
+  color: #5cff9a;
+}
+@keyframes dmg-pop {
+  0% {
+    opacity: 0;
+    scale: 2;
+    translate: -50% 0;
+  }
+  15% {
+    opacity: 1;
+    scale: 1;
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    translate: -50% -42px;
+  }
+}
 }

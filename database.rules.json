@@ -41,6 +41,10 @@
             ".write": "auth != null && auth.uid === $uid && root.child('members').child($cid).child(auth.uid).exists()",
             ".validate": "!newData.exists() || (newData.hasChildren(['kind', 'name', 'to', 'at']) && newData.child('name').isString() && newData.child('name').val().length <= 60)"
           }
+        },
+        "event": {
+          ".write": "auth != null && root.child('gm').child($cid).val() === auth.uid",
+          ".validate": "!newData.exists() || (newData.hasChildren(['kind', 'at']) && newData.child('kind').isString() && newData.child('kind').val().length <= 20)"
         }
       }
     },
