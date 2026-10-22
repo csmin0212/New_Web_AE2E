@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeStage, splitTitle } from "./stage";
+import { computeStage, speakerKey, splitTitle } from "./stage";
 import type { ChatMessage, Speaker } from "./types";
 
 let n = 0;
@@ -14,6 +14,12 @@ const gm = { name: "GM", narrator: true };
 const npc = { name: "[제 3왕녀] 앤드리아", image: "/andria.png" };
 
 describe("computeStage", () => {
+  it("무대에서 내린 인물은 말해도 다시 오르지 않고, 말풍선만", () => {
+    const v = computeStage([msg(elin), msg(yuz)], {}, true, { [speakerKey({ ...yuz, uid: "u" })]: true });
+    expect(v.actors.map((a) => a.name)).toEqual([elin.name]);
+    expect(v.line).toMatchObject({ kind: "bubble", actorKey: null });
+  });
+
   it("그림이 있는 화자가 자동으로 무대에 오르고, 마지막 화자가 말한다", () => {
     const v = computeStage([msg(elin), msg(yuz), msg(elin)], {}, true);
     expect(v.actors.map((a) => a.name)).toEqual(["엘린", "유즈"]);

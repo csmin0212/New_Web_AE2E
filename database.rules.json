@@ -92,6 +92,13 @@
         },
         "terrainDefs": {
           ".write": "auth != null && root.child('gm').child($cid).val() === auth.uid"
+        },
+        "damage": {
+          ".write": "auth != null && root.child('members').child($cid).child(auth.uid).exists()",
+          ".validate": "!newData.exists() || newData.hasChildren(['phase', 'attacker', 'targets', 'at'])"
+        },
+        "statusDefs": {
+          ".write": "auth != null && root.child('gm').child($cid).val() === auth.uid"
         }
       }
     },

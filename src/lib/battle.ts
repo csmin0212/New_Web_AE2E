@@ -4,8 +4,8 @@ import { doc, runTransaction as runFsTransaction } from "firebase/firestore";
 import { onValue, push, ref, runTransaction, set, update } from "firebase/database";
 import { derive } from "./ar/derive";
 import {
-  BAD_STATUS,
   cleanup,
+  statusDefs,
   CONDITION_LABEL,
   DAMAGE_LABEL,
   EFFECT_LABEL,
@@ -39,7 +39,9 @@ export type EffectRequest = {
   uid: string;
   from: string; // 쓴 캐릭터 이름 (기록용)
   source?: string; // 스킬·공격 이름
-  kind: EffectKind;
+  kind: EffectKind | "status"; // status = BS 부여 (amount = 강도)
+  statusId?: string;
+  statusLabel?: string;
   amount: number;
   dmgType?: DamageType;
   targets: EffectTarget[];
@@ -139,6 +141,10 @@ export async function sendEffect(
 // GM 화면: 들어온 요청을 처리한다
 export async function processEffect(ctx: { cid: string; uid: string; gmUid: string }, id: string, req: EffectRequest) {
   if (!(await claimEffect(ctx.cid, id))) return;
+  if (req.kind === "status") {
+    for (const t of req.targets ?? []) if (t.tid && req.statusId) await giveStatus(ctx, t, req.statusId, req.statusLabel ?? req.statusId, req.amount, req.from, req.source);
+    return;
+  }
   for (const t of req.targets ?? []) {
     try {
       await applyAndReport(ctx, t, { kind: req.kind, amount: req.amount, dmgType: req.dmgType, from: req.from, source: req.source });
@@ -150,6 +156,41 @@ export async function processEffect(ctx: { cid: string; uid: string; gmUid: stri
       );
     }
   }
+}
+
+// BS 걸기 — 토큰에 바로 쓰고 채팅에 남긴다
+async function giveStatus(ctx: { cid: string; uid: string }, t: EffectTarget, statusId: string, label: string, strength: number, from: string, source?: string) {
+  await set(ref(rtdb, `battle/${ctx.cid}/tokens/${t.tid}/status/${statusId}`), Math.max(1, Math.min(20, strength || 1)));
+  await sendMessage(ctx.cid, {
+    uid: ctx.uid,
+    speaker: { name: from, uid: ctx.uid },
+    kind: "system",
+    text: `${source ? `【${source}】 ` : ""}☠ ${t.name}에게 ${label}${strength > 1 ? ` ${strength}` : ""}`,
+  });
+}
+
+// 대상마다: 내가 고칠 수 있는 토큰(GM·주인)이면 바로, 아니면 GM 에게 요청
+export async function sendStatus(
+  ctx: { cid: string; uid: string; isGM: boolean; tokens: Record<string, { ownerUid?: string }> },
+  targets: EffectTarget[],
+  st: { id: string; label: string; strength: number },
+  from: string,
+  source?: string,
+): Promise<{ direct: number; queued: number }> {
+  const queued: EffectTarget[] = [];
+  let direct = 0;
+  for (const t of targets) {
+    if (!t.tid) continue;
+    if (ctx.isGM || ctx.tokens[t.tid]?.ownerUid === ctx.uid) {
+      await giveStatus(ctx, t, st.id, st.label, st.strength, from, source);
+      direct++;
+    } else queued.push(t);
+  }
+  if (queued.length) {
+    const req: EffectRequest = { uid: ctx.uid, from, source, kind: "status", statusId: st.id, statusLabel: st.label, amount: st.strength, targets: queued, at: Date.now() };
+    await push(ref(rtdb, `battle/${ctx.cid}/effects`), JSON.parse(JSON.stringify(req)));
+  }
+  return { direct, queued: queued.length };
 }
 
 // 에너미 토큰에 숫자 없는 상태(부상·전투불능)를 붙인다 — GM 화면에서만 돈다
@@ -169,8 +210,9 @@ export function syncConditions(cid: string, tokens: Record<string, { charId?: st
 export async function runCleanup(
   ctx: { cid: string; uid: string; gmUid: string },
   round: number,
-  b: Pick<Battle, "tokens" | "pos" | "terrain" | "terrainDefs">,
+  b: Pick<Battle, "tokens" | "pos" | "terrain" | "terrainDefs" | "statusDefs">,
 ) {
+  const sDefs = statusDefs(b.statusDefs);
   const tokens = b.tokens;
   const defs = Object.keys(b.terrainDefs).length ? b.terrainDefs : DEFAULT_TERRAINS;
   const claim = await runTransaction(ref(rtdb, `battle/${ctx.cid}/meta/cleanedRound`), (cur) => ((cur ?? 0) >= round ? undefined : round));
@@ -192,11 +234,11 @@ export async function runCleanup(
   }
   for (const [tid, t] of Object.entries(tokens)) {
     if (!t.status) continue;
-    const { next, poison } = cleanup(t.status);
+    const { next, poison } = cleanup(t.status, sDefs);
     const cleared = Object.keys(t.status).filter((k) => !(k in next));
     if (cleared.length) {
       await set(ref(rtdb, `battle/${ctx.cid}/tokens/${tid}/status`), Object.keys(next).length ? next : null);
-      lines.push(`${t.name}: ${cleared.map((k) => BAD_STATUS.find((b) => b.id === k)?.label ?? k).join("·")} 해제`);
+      lines.push(`${t.name}: ${cleared.map((k) => sDefs.find((b) => b.id === k)?.label ?? k).join("·")} 해제`);
     }
     if (poison > 0 && t.charId) {
       await applyAndReport(ctx, { tid, charId: t.charId, name: t.name }, { kind: "damage", amount: poison, dmgType: "pierce", from: "독", source: "클린업" });

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { fxDef, onLocalFx, subscribeFx, type FxEvent } from "@/lib/fxEvents";
+import { checkOutcome } from "@/lib/inline";
 import { splitTitle } from "@/lib/stage";
 import { useSession } from "./SessionContext";
 import "./fxevents.css";
@@ -65,7 +66,10 @@ export function FxEvents() {
 
   // ── 자동: 크리티컬·펌블 (방금 굴린 판정만) ──
   const seenRoll = useRef<string | null>(null);
-  const last = [...messages].reverse().find((m) => m.kind === "roll" && m.roll?.check);
+  // 판정 굴림 메시지, 또는 판정이 든 스킬 카드
+  const last = [...messages]
+    .reverse()
+    .find((m) => (m.kind === "roll" && m.roll?.check) || (m.kind === "card" && m.card && checkOutcome(m.card.body)));
   useEffect(() => {
     if (!last || last.id === seenRoll.current) return;
     const first = seenRoll.current === null;
@@ -73,10 +77,11 @@ export function FxEvents() {
     if (first || Date.now() - last.ts > FRESH_MS) return;
     if (last.secret && !isGM && last.uid !== user.uid) return;
     const face = last.speaker.avatar ?? last.speaker.image;
-    if (last.roll!.check!.critical)
-      push({ kind: "critical", text: "CRITICAL!", sub: `${splitTitle(last.speaker.name).name} · ${last.roll!.label ?? "판정"}`, image: face, color: last.speaker.color, at: Date.now() });
-    else if (last.roll!.check!.fumble)
-      push({ kind: "fumble", text: "FUMBLE…", sub: `${splitTitle(last.speaker.name).name} · ${last.roll!.label ?? "판정"}`, image: face, at: Date.now() });
+    const outcome = last.roll?.check ? (last.roll.check.critical ? "critical" : last.roll.check.fumble ? "fumble" : null) : last.card ? checkOutcome(last.card.body) : null;
+    const label = last.roll?.label ?? last.card?.title ?? "판정";
+    const who = splitTitle(last.speaker.name).name;
+    if (outcome === "critical") push({ kind: "critical", text: "CRITICAL!", sub: `${who} · ${label}`, image: face, color: last.speaker.color, at: Date.now() });
+    else if (outcome === "fumble") push({ kind: "fumble", text: "FUMBLE…", sub: `${who} · ${label}`, image: face, at: Date.now() });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [last?.id]);
 

@@ -4,10 +4,12 @@ import { useMemo, useState } from "react";
 import { applyItem, applySkill, rollArCheck, rolledTotals, type ActCtx } from "@/lib/ar/actions";
 import { derive, formatDiceMod } from "@/lib/ar/derive";
 import type { DiceMod } from "@/lib/ar/types";
-import { sendEffect } from "@/lib/battle";
-import { DAMAGE_LABEL, EFFECT_LABEL, type DamageType, type EffectKind } from "@/lib/battleRules";
+import { sendEffect, sendStatus } from "@/lib/battle";
+import { openDamage } from "@/lib/damageWindow";
+import { DAMAGE_LABEL, EFFECT_LABEL, statusDefs, type DamageType, type EffectKind } from "@/lib/battleRules";
 import { splitTitle } from "@/lib/stage";
 import type { Character, Gauge } from "@/lib/types";
+import { useContextMenu, type MenuItem } from "../ContextMenu";
 import { useSession } from "./SessionContext";
 
 // 내 차례 행동 바 — 전투 그리드 아래쪽에 떠 있다.
@@ -37,7 +39,7 @@ export function ActionDock({
   onRemoveTarget: (id: string) => void;
   onClose: () => void;
 }) {
-  const { cid, user, isGM, campaign, characters } = useSession();
+  const { cid, user, isGM, campaign, characters, battle } = useSession();
   const c = unit.character;
   const ar = c?.ar;
   const ctx: ActCtx = { cid, uid: user.uid, isGM, gmUid: campaign.gmUid };
@@ -65,6 +67,7 @@ export function ActionDock({
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null);
   const [folded, setFolded] = useState(false);
+  const bsMenu = useContextMenu();
 
   const attack = attacks.find((a) => a.id === pick.attack) ?? attacks[0];
   const skill = skills.find((s) => s.id === pick.skill) ?? skills[0];
@@ -88,6 +91,24 @@ export function ActionDock({
     setKind(k);
     if (type) setDmgType(type);
     if (values.length) setAmount(String(values[values.length - 1].total));
+  }
+
+  // 대상에게 BS 걸기 (강도가 있는 것은 묻는다)
+  async function giveBs(id: string, label: string, strength: boolean) {
+    const n = strength ? parseInt(prompt(`${label} 강도`, "1") ?? "", 10) : 1;
+    if (!Number.isFinite(n) || n < 1) return;
+    await run(async () => {
+      const list = targets.map((t) => ({ tid: t.id, charId: t.charId ?? "", name: t.name }));
+      const r = await sendStatus({ cid, uid: user.uid, isGM, tokens: battle.tokens }, list, { id, label, strength: n }, c?.sheet.name ?? unit.name, source);
+      setMsg({ text: r.queued ? `${label}을(를) 걸었어요. (${r.queued}명은 GM 화면에서 처리)` : `${label}을(를) 걸었어요.` });
+    });
+  }
+
+  // 대미지 처리 창 열기 (직전 → 굴림 → 직후 → 확정)
+  async function startTiming(base: { expr?: string; fixed?: number }, src: string, type: DamageType) {
+    const list = targets.filter((t) => t.charId).map((t) => ({ tid: t.id, charId: t.charId!, name: t.name }));
+    if (!list.length) throw new Error("먼저 그리드에서 대상을 골라 주세요.");
+    await openDamage(cid, { attacker: { name: c?.sheet.name ?? unit.name, charId: c?.id, uid: user.uid }, source: src, dmgType: type, base, targets: list });
   }
 
   async function apply() {
@@ -118,6 +139,7 @@ export function ActionDock({
 
   return (
     <div className="pointer-events-auto absolute bottom-3 left-1/2 z-30 w-[min(600px,calc(100%-24px))] -translate-x-1/2 animate-rise-in">
+      {bsMenu.node}
       <div className="panel space-y-2 p-2.5 text-xs shadow-[0_12px_40px_rgba(0,0,0,.6)]" style={{ background: "color-mix(in srgb, var(--panel) 94%, transparent)" }}>
         {/* 머리: 누가 · 자원 · 접기 · 턴 종료 */}
         <div className="flex items-center gap-2">
@@ -179,6 +201,14 @@ export function ActionDock({
                   }
                 >
                   <span>대미지 {formatDiceMod(attack.damage)}</span>
+                </button>
+                <button
+                  className="btn-primary py-1"
+                  disabled={busy || !!battle.damage}
+                  title="대미지 굴림 직전·직후 스킬(증가·경감·커버링)을 받고 나서 굴리고 적용해요"
+                  onClick={() => run(() => startTiming({ expr: formatDiceMod(attack.damage) }, attack.name, attack.dmgType))}
+                >
+                  <span>⏱ 대미지 (타이밍)</span>
                 </button>
               </>
             )}
@@ -269,7 +299,41 @@ export function ActionDock({
               ))}
             </select>
           )}
-          <button className="btn-primary ml-auto py-1" disabled={busy || !amount || targets.length === 0} onClick={apply}>
+          <button
+            className="btn py-1"
+            disabled={busy || targets.length === 0}
+            title="대상에게 상태 이상(BS)·버프를 건다"
+            onClick={(e) => {
+              const r = e.currentTarget.getBoundingClientRect();
+              bsMenu.open(
+                { clientX: r.left, clientY: r.top - 4 },
+                [
+                  { title: `대상 ${targets.length}명에게 BS 부여` },
+                  ...statusDefs(battle.statusDefs).map(
+                    (b): MenuItem => ({
+                      label: b.label,
+                      hint: b.hint.split(" · ")[0],
+                      icon: <span style={{ color: b.color }}>●</span>,
+                      onSelect: () => giveBs(b.id, b.label, !!b.strength),
+                    }),
+                  ),
+                ],
+              );
+            }}
+          >
+            <span>☠ BS</span>
+          </button>
+          {kind === "damage" && (
+            <button
+              className="btn ml-auto py-1"
+              disabled={busy || !amount || targets.length === 0 || !!battle.damage}
+              title="이 값으로 대미지 처리 창을 열어 직전·직후 선언(증가·경감·커버링)을 받아요"
+              onClick={() => run(() => startTiming({ fixed: parseInt(amount, 10) || 0 }, source ?? "대미지", dmgType))}
+            >
+              <span>⏱ 타이밍 처리</span>
+            </button>
+          )}
+          <button className={`btn-primary py-1 ${kind === "damage" ? "" : "ml-auto"}`} disabled={busy || !amount || targets.length === 0} onClick={apply}>
             <span>대상 {targets.length}명에게 적용</span>
           </button>
         </div>

@@ -3,7 +3,6 @@
 import { faceOf, stageImageOf } from "@/lib/characterArt";
 import { useEffect, useState, type MouseEvent } from "react";
 import { removeCharacter, updateCharacter } from "@/lib/campaigns";
-import { findCast, toggleCast } from "@/lib/scene";
 import type { Character, Gauge } from "@/lib/types";
 import { ArSheetView } from "../ArSheetView";
 import { CharacterCard } from "../CharacterCard";
@@ -13,6 +12,7 @@ import { RevealDialog } from "./RevealDialog";
 import { RevealView } from "./RevealView";
 import { ResizeHandle, useResizable } from "./Resizable";
 import { useSession } from "./SessionContext";
+import { stageMenuItems } from "./stageMenu";
 
 // 어디서든 캐릭터 시트를 열 수 있게 (화자 칩·토큰 우클릭 등)
 const OPEN_SHEET = "vtt:open-sheet";
@@ -53,8 +53,7 @@ export function PartyBar() {
       items.push({ label: "플레이어 공개 설정…", hint: c.hidden ? "골라서 공개" : "전부 공개", icon: c.hidden ? "🔒" : "👁", onSelect: () => setRevealId(c.id) });
     if (isGM) {
       const who = { charId: c.id, name: c.sheet.name, image: stageImageOf(c) };
-      const on = !!findCast(scene, who);
-      items.push({ label: on ? "무대에서 내리기" : "무대에 계속 세우기", icon: on ? "▼" : "▲", onSelect: () => toggleCast(cid, scene, who) });
+      items.push(...stageMenuItems(cid, scene, who));
       items.push("sep", { title: "종류 바꾸기" });
       for (const k of ["pc", "npc", "enemy"] as const) {
         if (k === c.kind) continue;

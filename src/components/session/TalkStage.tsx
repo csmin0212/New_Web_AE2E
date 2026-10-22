@@ -6,6 +6,8 @@ import { PHASES, updateScene, type TalkView } from "@/lib/scene";
 import { computeStage, splitTitle, type Actor } from "@/lib/stage";
 import type { ChatMessage } from "@/lib/types";
 import { RollView } from "../ChatMessageView";
+import { useContextMenu } from "../ContextMenu";
+import { stageMenuItems } from "./stageMenu";
 import { useSession } from "./SessionContext";
 import "./stage.css";
 
@@ -20,7 +22,18 @@ const SCALE_MAX = 1.3;
 //   배경 모드: 인물은 내리고 배경을 살린다. 말하는 사람 얼굴만 말풍선 옆에
 export function TalkStage() {
   const { scene, messages, isGM } = useSession();
-  const view = useMemo(() => computeStage(messages, scene.cast, scene.autoCast), [messages, scene.cast, scene.autoCast]);
+  const view = useMemo(
+    () => computeStage(messages, scene.cast, scene.autoCast, scene.offstage),
+    [messages, scene.cast, scene.autoCast, scene.offstage],
+  );
+  const menu = useContextMenu();
+  const { cid } = useSession();
+  // GM: 무대 위 인물 우클릭 → 내리기·계속 세우기
+  const actorMenu = (e: React.MouseEvent, a: Actor) => {
+    if (!isGM) return;
+    const who = { charId: a.key.startsWith("char:") ? a.key.slice(5) : undefined, name: a.name, image: a.image };
+    menu.open(e, [{ title: splitTitle(a.name).name }, ...stageMenuItems(cid, scene, who)]);
+  };
   const phase = PHASES.find((p) => p.id === scene.phase);
   const line = view.line;
   const typed = useTypewriter(line?.message ?? null);
@@ -49,7 +62,7 @@ export function TalkStage() {
       {focus && !scene.cg && (
         <div className="stage__actors">
           {view.actors.map((a) => (
-            <ActorView key={a.key} actor={a} speaking={view.speakingKey === a.key} anyoneSpeaking={!!view.speakingKey} />
+            <ActorView key={a.key} actor={a} speaking={view.speakingKey === a.key} anyoneSpeaking={!!view.speakingKey} onMenu={isGM ? (e) => actorMenu(e, a) : undefined} />
           ))}
         </div>
       )}
@@ -81,6 +94,7 @@ export function TalkStage() {
       )}
 
       <RollPopups messages={messages} />
+      {menu.node}
     </div>
   );
 }
@@ -129,7 +143,7 @@ function StageControls({ view, scale }: { view: TalkView; scale: number }) {
   );
 }
 
-function ActorView({ actor, speaking, anyoneSpeaking }: { actor: Actor; speaking: boolean; anyoneSpeaking: boolean }) {
+function ActorView({ actor, speaking, anyoneSpeaking, onMenu }: { actor: Actor; speaking: boolean; anyoneSpeaking: boolean; onMenu?: (e: React.MouseEvent) => void }) {
   const back = anyoneSpeaking && !speaking;
   const shape = useImageShape(actor.image);
   const card = shape?.kind === "card";
@@ -137,7 +151,9 @@ function ActorView({ actor, speaking, anyoneSpeaking }: { actor: Actor; speaking
   return (
     <div
       className={`stage__actor ${card ? "stage__actor--card" : ""} ${medal ? "stage__actor--medal" : ""} ${speaking ? "stage__actor--speaking" : ""} ${back ? "stage__actor--back" : ""}`}
-      style={{ left: `${actor.left}%`, visibility: actor.image && !shape ? "hidden" : undefined }}
+      style={{ left: `${actor.left}%`, visibility: actor.image && !shape ? "hidden" : undefined, pointerEvents: onMenu ? "auto" : undefined }}
+      onContextMenu={onMenu}
+      title={onMenu ? `${actor.name} — 우클릭: 무대에서 내리기·계속 세우기` : undefined}
     >
       {actor.image ? (
         medal ? (

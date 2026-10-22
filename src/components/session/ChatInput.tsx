@@ -6,7 +6,7 @@ import { sendMessage } from "@/lib/chat";
 import { parseChatInput } from "@/lib/chatCommand";
 import { findKeywordCutin, triggerCutin } from "@/lib/fx";
 import { roll } from "@/lib/dice";
-import { findCast, removeNpc, toggleCast } from "@/lib/scene";
+import { removeNpc } from "@/lib/scene";
 import { splitTitle } from "@/lib/stage";
 import type { Speaker } from "@/lib/types";
 import { faceOf, stageImageOf } from "@/lib/characterArt";
@@ -16,6 +16,7 @@ import { DiceColorButton } from "./DiceColorButton";
 import { CharacterEditDialog, NpcEditDialog } from "./EditDialogs";
 import { openSheet } from "./PartyBar";
 import { useSession } from "./SessionContext";
+import { stageMenuItems } from "./stageMenu";
 
 type SpeakerOption = { key: string; speaker: Speaker; face?: string };
 
@@ -162,8 +163,7 @@ export function ChatInput() {
     }
     if (npcKey) items.push({ label: "고치기", hint: "그림·색·이름", icon: "✎", onSelect: () => setEditNpc(npcKey) });
     if (isGM && (charId || npcKey)) {
-      const on = !!findCast(scene, who);
-      items.push({ label: on ? "무대에서 내리기" : "무대에 계속 세우기", icon: on ? "▼" : "▲", onSelect: () => toggleCast(cid, scene, who) });
+      items.push(...stageMenuItems(cid, scene, who));
     }
     if (!o.speaker.narrator && o.key !== "self") {
       items.push("sep", { label: "화자 줄에서 숨기기", hint: "내 화면만", icon: "◌", onSelect: () => hide(o.key) });

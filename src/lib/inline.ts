@@ -3,7 +3,8 @@
 // 곱셈·괄호까지 되는 작은 계산기가 필요하다. 주사위는 NdM / ND(=d6).
 
 export type InlineDice = { sides: number; results: number[] };
-export type InlineResult = { expr: string; total: number; dice: InlineDice[] };
+// check: 판정 굴림이면 크리티컬(6 이 두 개 이상)·펌블(전부 1)
+export type InlineResult = { expr: string; total: number; dice: InlineDice[]; check?: { critical: boolean; fumble: boolean } };
 export type Segment = string | InlineResult;
 
 type Rng = () => number;
@@ -95,22 +96,48 @@ export function evalExpr(expr: string, rng: Rng = defaultRng): InlineResult {
   return { expr: expr.trim(), total, dice: p.dice };
 }
 
+function judge(r: InlineResult): InlineResult {
+  const d6 = r.dice.filter((d) => d.sides === 6).flatMap((d) => d.results);
+  if (!d6.length) return r;
+  return { ...r, check: { critical: d6.filter((v) => v === 6).length >= 2, fumble: d6.every((v) => v === 1) } };
+}
+
 // 글 안의 [[식]] 을 굴린 결과로 바꾼다. 못 읽는 식(@{속성} 등)은 글자 그대로 둔다.
+//   「명중 판정은 [6D+25]」처럼 판정 뒤에 오는 [식] 은 판정 굴림으로 굴린다 (크리티컬·펌블)
+//   [[식]] 앞에 「판정」이 붙어 있어도 판정 굴림
 export function rollInline(text: string, rng: Rng = defaultRng): Segment[] {
   const out: Segment[] = [];
-  const re = /\[\[([^\]]+)\]\]/g;
+  const re = /\[\[([^\]]+)\]\]|(판정[은는:]?\s*)\[(\d+\s*[dD](?:\s*[+-]\s*\d+)*)\]/g;
   let last = 0;
   for (let m = re.exec(text); m; m = re.exec(text)) {
     if (m.index > last) out.push(text.slice(last, m.index));
-    try {
-      out.push(evalExpr(m[1], rng));
-    } catch {
-      out.push(m[0]);
+    if (m[1] !== undefined) {
+      const isCheck = /판정[은는:]?\s*$/.test(text.slice(Math.max(0, m.index - 12), m.index));
+      try {
+        const r = evalExpr(m[1], rng);
+        out.push(isCheck ? judge(r) : r);
+      } catch {
+        out.push(m[0]);
+      }
+    } else {
+      out.push(m[2]);
+      try {
+        out.push(judge(evalExpr(m[3], rng)));
+      } catch {
+        out.push(`[${m[3]}]`);
+      }
     }
     last = m.index + m[0].length;
   }
   if (last < text.length) out.push(text.slice(last));
   return out;
+}
+
+// 카드 속 판정 굴림 중 크리티컬·펌블이 있으면
+export function checkOutcome(segments: Segment[]): "critical" | "fumble" | null {
+  for (const s of segments) if (typeof s !== "string" && s.check?.critical) return "critical";
+  for (const s of segments) if (typeof s !== "string" && s.check?.fumble) return "fumble";
+  return null;
 }
 
 export function hasInline(text: string): boolean {

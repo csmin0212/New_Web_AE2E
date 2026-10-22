@@ -4,7 +4,7 @@ import { tokenImageOf } from "@/lib/characterArt";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent } from "react";
 import { setTurn } from "@/lib/battle";
 import { derive } from "@/lib/ar/derive";
-import { BAD_STATUS, CONDITION_LABEL, effectiveInit, endTurn, giveTurn, initiativeOrder, startBattle, type StatusMap } from "@/lib/battleRules";
+import { CONDITION_LABEL, effectiveInit, endTurn, giveTurn, initiativeOrder, startBattle, statusDefs, type StatusMap } from "@/lib/battleRules";
 import { cellDistance, clearPointer, METERS_PER_CELL, setPointer, subscribePointers, type Cell, type Pointer } from "@/lib/pointer";
 import { moveToken, removeToken, setTokenSize, setTokenStatus, updateToken, type Token } from "@/lib/scene";
 import { splitTitle } from "@/lib/stage";
@@ -14,7 +14,9 @@ import { useContextMenu, type MenuItem } from "../ContextMenu";
 import { paintCells, terrainDefsOf } from "@/lib/battleMaps";
 import { canPlace, cellKey, TERRAIN_EFFECT_LABEL } from "@/lib/terrain";
 import { ActionDock } from "./ActionDock";
+import { DamagePanel } from "./DamagePanel";
 import { RevealDialog } from "./RevealDialog";
+import { StatusDefDialog } from "./StatusDefDialog";
 import { TerrainPalette } from "./TerrainPalette";
 import { openSheet } from "./PartyBar";
 import { useSession } from "./SessionContext";
@@ -36,6 +38,7 @@ export function BattleStage() {
   const [tool, setTool] = useState<Tool>("move");
   const [brush, setBrush] = useState<string | null>("wall");
   const [revealFor, setRevealFor] = useState<string | null>(null);
+  const [defsOpen, setDefsOpen] = useState(false);
 
   const units: Unit[] = useMemo(
     () =>
@@ -131,7 +134,7 @@ export function BattleStage() {
   function statusMenu(u: Unit): MenuItem[] {
     const cur: StatusMap = u.status ?? {};
     const items: MenuItem[] = [{ title: `${splitTitle(u.name).name} · 배드 스테이터스` }];
-    for (const b of BAD_STATUS) {
+    for (const b of statusDefs(battle.statusDefs)) {
       const v = cur[b.id];
       items.push({
         label: b.label + (v && b.strength ? ` ${v}` : ""),
@@ -150,6 +153,7 @@ export function BattleStage() {
       });
     }
     if (Object.keys(cur).length) items.push("sep", { label: "모두 풀기", icon: "✕", onSelect: () => setTokenStatus(cid, u.id, {}) });
+    if (isGM) items.push("sep", { label: "새 상태 만들기…", hint: "버프·서플리먼트 BS", icon: "＋", onSelect: () => setDefsOpen(true) });
     return items;
   }
 
@@ -241,6 +245,7 @@ export function BattleStage() {
             }}
             onMenu={unitMenu}
           />
+          {battle.damage && <DamagePanel w={battle.damage} />}
           {dockUnit && (
             <ActionDock
               key={dockUnit.id}
@@ -257,6 +262,7 @@ export function BattleStage() {
         <UnitCards units={order} currentId={turn.actor ?? undefined} onMenu={unitMenu} />
       </div>
       {menu.node}
+      {defsOpen && <StatusDefDialog onClose={() => setDefsOpen(false)} />}
       {(() => {
         const c = revealFor ? characters.find((x) => x.id === revealFor) : undefined;
         return c ? <RevealDialog character={c} onClose={() => setRevealFor(null)} /> : null;
@@ -302,7 +308,8 @@ function Grid({
   const cell = Math.max(8, Math.round(fitCell * zoom));
   const anchor = useRef<{ fx: number; fy: number; cx: number; cy: number } | null>(null);
   const pan = useRef<{ x: number; y: number; sl: number; st: number } | null>(null);
-  const [drag, setDrag] = useState<{ id: string; from: { x: number; y: number }; to: { x: number; y: number } } | null>(null);
+  // grab: 토큰 왼쪽 위 칸에서 얼마나 떨어진 칸을 잡았는지 (큰 토큰을 가운데로 잡아도 제자리)
+  const [drag, setDrag] = useState<{ id: string; from: { x: number; y: number }; to: { x: number; y: number }; grab: { x: number; y: number } } | null>(null);
 
   // 화면에 맞게 칸 크기를 정한다
   useEffect(() => {
@@ -377,12 +384,18 @@ function Grid({
 
   useEffect(() => {
     if (!drag) return;
-    const move = (e: PointerEvent) => setDrag((d) => (d ? { ...d, to: cellAt(e.clientX, e.clientY) } : d));
+    const sizeOf = (id: string) => units.find((u) => u.id === id)?.size ?? 1;
+    // 잡은 칸만큼 되돌리고 그리드 안으로
+    const placeAt = (d: NonNullable<typeof drag>, clientX: number, clientY: number) => {
+      const c = cellAt(clientX, clientY);
+      const size = sizeOf(d.id);
+      return { x: Math.max(0, Math.min(c.x - d.grab.x, cols - size)), y: Math.max(0, Math.min(c.y - d.grab.y, rows - size)) };
+    };
+    const move = (e: PointerEvent) => setDrag((d) => (d ? { ...d, to: placeAt(d, e.clientX, e.clientY) } : d));
     const up = (e: PointerEvent) => {
       const d = dragRef.current;
-      const size = d ? (units.find((u) => u.id === d.id)?.size ?? 1) : 1;
-      const raw = d ? cellAt(e.clientX, e.clientY) : null;
-      const to0 = raw ? { x: Math.min(raw.x, cols - size), y: Math.min(raw.y, rows - size) } : null;
+      const size = d ? sizeOf(d.id) : 1;
+      const to0 = d ? placeAt(d, e.clientX, e.clientY) : null;
       // 벽(진입 불가) 칸에는 놓지 않는다
       const to = to0 && canPlace(to0, size, battle.terrain, terrainDefsOf(battle)) ? to0 : null;
       const moved = !!(d && to && (to.x !== d.from.x || to.y !== d.from.y));
@@ -698,7 +711,8 @@ function Grid({
                 movedRef.current = false;
                 if (!movable || e.button !== 0) return;
                 e.preventDefault();
-                setDrag({ id: u.id, from: { x: u.x, y: u.y }, to: { x: u.x, y: u.y } });
+                const c = cellAt(e.clientX, e.clientY);
+                setDrag({ id: u.id, from: { x: u.x, y: u.y }, to: { x: u.x, y: u.y }, grab: { x: c.x - u.x, y: c.y - u.y } });
               }}
               onClick={() => {
                 if (movedRef.current) return;
@@ -774,7 +788,8 @@ function TokenFace({ unit, size, active }: { unit: Unit; size: number; active?: 
 
 // 토큰 왼쪽 위에 배드 스테이터스 점
 function StatusDots({ status }: { status?: StatusMap }) {
-  const on = BAD_STATUS.filter((b) => status?.[b.id]);
+  const { battle } = useSession();
+  const on = statusDefs(battle.statusDefs).filter((b) => status?.[b.id]);
   if (!on.length) return null;
   return (
     <div className="pointer-events-none absolute -top-1 -left-1 flex max-w-full flex-wrap gap-px">
@@ -817,7 +832,7 @@ function FatePips({ g }: { g?: Gauge }) {
 
 // 그리드 오른쪽 유닛 카드 열 (레퍼런스의 HP 카드 묶음). 그리드를 가리지 않게 따로 세운다
 function UnitCards({ units, currentId, onMenu }: { units: Unit[]; currentId?: string; onMenu: (e: MouseEvent, u: Unit) => void }) {
-  const { isGM } = useSession();
+  const { isGM, battle } = useSession();
   if (units.length === 0) return null;
   return (
     <div className="hidden w-52 shrink-0 flex-col gap-1.5 overflow-y-auto border-l border-line/60 bg-black/20 p-2 md:flex">
@@ -840,7 +855,7 @@ function UnitCards({ units, currentId, onMenu }: { units: Unit[]; currentId?: st
               {u.character && u.character.kind !== "enemy" && u.character.fate.max > 0 && <MiniGauge label="FT" g={u.character.fate} color="bg-fate" />}
               {u.status && Object.keys(u.status).length > 0 && (
                 <div className="mt-0.5 flex flex-wrap gap-0.5">
-                  {BAD_STATUS.filter((b) => u.status![b.id]).map((b) => (
+                  {statusDefs(battle.statusDefs).filter((b) => u.status![b.id]).map((b) => (
                     <span key={b.id} className="rounded-sm px-1 text-[9px] leading-[13px] font-bold text-white" style={{ background: b.color }} title={b.hint}>
                       {b.label}
                       {b.strength ? u.status![b.id] : ""}

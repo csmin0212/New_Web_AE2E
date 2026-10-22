@@ -32,7 +32,8 @@ export function isStageMessage(m: ChatMessage): boolean {
   return !m.to && !m.secret && (m.kind === "say" || m.kind === "action");
 }
 
-export function computeStage(messages: ChatMessage[], cast: Record<string, CastEntry>, autoCast: boolean): StageView {
+// offstage: GM 이 무대에서 내린 인물 (말해도 자동으로 다시 오르지 않는다)
+export function computeStage(messages: ChatMessage[], cast: Record<string, CastEntry>, autoCast: boolean, offstage: Record<string, true> = {}): StageView {
   const lines = messages.filter(isStageMessage);
   const last = lines[lines.length - 1] ?? null;
 
@@ -50,7 +51,7 @@ export function computeStage(messages: ChatMessage[], cast: Record<string, CastE
   const auto: Omit<Actor, "left">[] = [];
   if (autoCast) {
     const recent = lines.slice(-AUTO_WINDOW);
-    const seen = new Set(pinned.map((p) => p.key));
+    const seen = new Set([...pinned.map((p) => p.key), ...Object.keys(offstage)]);
     const picked: Omit<Actor, "left">[] = [];
     for (let i = recent.length - 1; i >= 0 && picked.length < MAX_AUTO; i--) {
       const s = recent[i].speaker;

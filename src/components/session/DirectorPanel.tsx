@@ -241,6 +241,22 @@ function CastSection() {
           </li>
         ))}
       </ul>
+      {Object.keys(scene.offstage).length > 0 && (
+        <div className="mt-2 rounded border border-dashed border-line p-1.5 text-xs">
+          <div className="mb-1 text-[11px] text-muted">무대에서 내린 인물 (말해도 안 올라와요)</div>
+          <div className="flex flex-wrap gap-1">
+            {Object.keys(scene.offstage).map((k) => {
+              const c = k.startsWith("char:") ? characters.find((x) => x.id === k.slice(5)) : undefined;
+              const name = c?.sheet.name ?? k.replace(/^name:/, "");
+              return (
+                <button key={k} className="btn px-1.5 py-0 text-[11px]" title="다시 자동으로 오르게" onClick={() => updateScene(cid, { offstage: { ...scene.offstage, [k]: undefined } as Record<string, true> })}>
+                  <span>↺ {splitTitle(name).name}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
       <div className="mt-2 flex gap-1">
         <select className="input" value={pick} onChange={(e) => setPick(e.target.value)}>
           <option value="">무대에 올릴 인물…</option>

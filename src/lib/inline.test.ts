@@ -34,3 +34,19 @@ describe("rollInline", () => {
     expect(rollInline("[[@{strength_attribute}+1]]")).toEqual(["[[@{strength_attribute}+1]]"]);
   });
 });
+
+describe("스킬 판정 굴림", () => {
+  it("「판정은 [6D+25]」는 판정으로 굴려 크리티컬을 가린다", async () => {
+    const { rollInline, checkOutcome } = await import("./inline");
+    const six = () => 0.99; // 전부 6
+    const segs = rollInline("명중 판정은 [6D+25], 대미지는 [[5d6+115]]", six);
+    const check = segs.find((s) => typeof s !== "string" && s.check);
+    expect(check).toMatchObject({ expr: "6D+25", total: 61, check: { critical: true, fumble: false } });
+    const dmg = segs.find((s) => typeof s !== "string" && !s.check);
+    expect(dmg).toMatchObject({ expr: "5d6+115" });
+    expect(checkOutcome(segs)).toBe("critical");
+    const one = () => 0;
+    expect(checkOutcome(rollInline("마술 판정: [[2D+3]]", one))).toBe("fumble");
+    expect(checkOutcome(rollInline("대미지 [[2D+3]]", six))).toBeNull(); // 판정이 아니면 크리티컬 아님
+  });
+});

@@ -591,10 +591,6 @@ body {
 
 /* 굴림 결과를 눌렀을 때 펼쳐지는 주사위 */
 .roll-pop {
-  position: absolute;
-  left: 0;
-  top: calc(100% + 4px);
-  z-index: 40;
   display: block;
   min-width: 9rem;
   padding: 8px 10px;
@@ -629,5 +625,23 @@ body {
 }
 .terrain-cell--heal {
   background: radial-gradient(circle, color-mix(in srgb, var(--tc) 60%, transparent), color-mix(in srgb, var(--tc) 20%, transparent));
+}
+
+/* 전투 그리드: 끌기·휠로 움직이므로 스크롤바는 숨긴다 */
+.battle-scroll {
+  scrollbar-width: none;
+}
+.battle-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.roll-chip--crit {
+  border-color: var(--crit);
+  background: color-mix(in srgb, var(--crit) 22%, var(--panel));
+  box-shadow: 0 0 8px color-mix(in srgb, var(--crit) 40%, transparent);
+}
+.roll-chip--fumble {
+  border-color: var(--fumble);
+  background: color-mix(in srgb, var(--fumble) 20%, var(--panel));
 }
 }

@@ -1,10 +1,12 @@
 "use client";
 
 import { memo, useEffect, useRef, useState, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import type { RollResult } from "@/lib/dice";
 import type { InlineResult, Segment } from "@/lib/inline";
 import { splitTitle } from "@/lib/stage";
 import type { ChatCard, ChatMessage } from "@/lib/types";
+import { portalRoot } from "./session/ThemeRoot";
 import { StyledText } from "./StyledText";
 
 // 채팅이 하나 올 때마다 300개를 다시 그리지 않게, 내용이 같은 메시지는 건너뛴다
@@ -197,8 +199,10 @@ export function RichText({ segments, className = "" }: { segments: Segment[]; cl
 
 // 카드 속 굴림 결과 — 누르면 실제로 굴러간 주사위가 펼쳐지고, 다른 곳을 누르면 닫힌다
 function RollChip({ r }: { r: InlineResult }) {
-  const [open, setOpen] = useState(false);
+  // 펼친 창은 카드·기록 칸 밖(맨 위층)에 그린다 — 카드 안에 그리면 잘린다
+  const [open, setOpen] = useState<{ left: number; top: number; up: boolean } | null>(null);
   const box = useRef<HTMLSpanElement>(null);
+  const pop = useRef<HTMLSpanElement>(null);
   const dice = (r.dice ?? []).flatMap((d) => (d.results ?? []).map((v) => ({ v, sides: d.sides })));
   const diceSum = dice.reduce((a, d) => a + d.v, 0);
   const rest = r.total - diceSum;
@@ -206,14 +210,18 @@ function RollChip({ r }: { r: InlineResult }) {
   useEffect(() => {
     if (!open) return;
     const close = (e: PointerEvent) => {
-      if (!box.current?.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      if (!box.current?.contains(t) && !pop.current?.contains(t)) setOpen(null);
     };
-    const key = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    const key = (e: KeyboardEvent) => e.key === "Escape" && setOpen(null);
+    const scroll = () => setOpen(null); // 기록을 스크롤하면 닫는다 (자리가 어긋나므로)
     window.addEventListener("pointerdown", close, true);
     window.addEventListener("keydown", key);
+    window.addEventListener("scroll", scroll, true);
     return () => {
       window.removeEventListener("pointerdown", close, true);
       window.removeEventListener("keydown", key);
+      window.removeEventListener("scroll", scroll, true);
     };
   }, [open]);
 
@@ -221,16 +229,30 @@ function RollChip({ r }: { r: InlineResult }) {
     <span ref={box} className="relative inline-block">
       <button
         type="button"
-        className="roll-chip mx-0.5 inline-flex items-baseline gap-1 rounded border px-1.5 font-bold"
-        onClick={() => setOpen((o) => !o)}
+        className={`roll-chip mx-0.5 inline-flex items-baseline gap-1 rounded border px-1.5 font-bold ${r.check?.critical ? "roll-chip--crit" : r.check?.fumble ? "roll-chip--fumble" : ""}`}
+        onClick={(e) => {
+          if (open) return setOpen(null);
+          const b = e.currentTarget.getBoundingClientRect();
+          const up = b.bottom > window.innerHeight - 180;
+          setOpen({ left: Math.min(b.left, window.innerWidth - 280), top: up ? b.top - 6 : b.bottom + 4, up });
+        }}
         title="눌러서 주사위 보기"
-        aria-expanded={open}
+        aria-expanded={!!open}
       >
         {r.total}
         <span className="text-[10px] font-normal text-muted">{r.expr}</span>
+        {r.check?.critical && <span className="rounded bg-crit px-1 text-[10px] text-black">크리티컬!</span>}
+        {r.check?.fumble && <span className="rounded bg-fumble px-1 text-[10px] text-white">펌블</span>}
       </button>
-      {open && (
-        <span className="roll-pop" role="dialog" aria-label={`${r.expr} 주사위`}>
+      {open &&
+        createPortal(
+        <span
+          ref={pop}
+          className="roll-pop"
+          role="dialog"
+          aria-label={`${r.expr} 주사위`}
+          style={{ position: "fixed", left: open.left, top: open.top, transform: open.up ? "translateY(-100%)" : undefined, zIndex: 120 }}
+        >
           <span className="mb-1 block text-[11px] text-muted">{r.expr}</span>
           {dice.length ? (
             <span className="flex max-w-64 flex-wrap gap-1">
@@ -254,8 +276,9 @@ function RollChip({ r }: { r: InlineResult }) {
             <span>=</span>
             <b className="roll-total text-base">{r.total}</b>
           </span>
-        </span>
-      )}
+        </span>,
+          portalRoot(),
+        )}
     </span>
   );
 }

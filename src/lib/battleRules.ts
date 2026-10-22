@@ -110,7 +110,8 @@ export function parseCost(cost: string): { mp: number; hp: number } | null {
 // ── 배드 스테이터스 (아리안로드 2E, roll20/RULES.md 6장) ──
 //   strength: 강도가 있는 BS. clear: 저절로 풀리는 때
 export type BsId = "daze" | "awe" | "rage" | "stun" | "slip" | "poison" | "knockback" | "berserk" | "fear" | "weak" | "bind";
-export type BsDef = { id: BsId; label: string; color: string; strength?: boolean; clear?: "cleanup" | "own-turn"; hint: string };
+// id 는 기본 BS(BsId) 이거나 GM 이 만든 상태의 id
+export type BsDef = { id: string; label: string; color: string; strength?: boolean; clear?: "cleanup" | "own-turn"; hint: string; custom?: boolean };
 
 export const BAD_STATUS: BsDef[] = [
   { id: "daze", label: "멍함", color: "#9aa4b5", clear: "cleanup", hint: "메이저 액션 판정 −1D · 클린업에 해제" },
@@ -126,13 +127,18 @@ export const BAD_STATUS: BsDef[] = [
   { id: "bind", label: "속박", color: "#6b6b6b", hint: "셋업 타이밍 사용 불가 · 셋업 끝에 해제" },
 ];
 
-export type StatusMap = Partial<Record<BsId, number>>; // 값 = 강도 (강도 없는 BS 는 1)
+export type StatusMap = Record<string, number>; // 값 = 강도 (강도 없는 BS 는 1)
+
+// 기본 BS + GM 이 만든 상태
+export function statusDefs(custom: Record<string, Omit<BsDef, "id">> = {}): BsDef[] {
+  return [...BAD_STATUS, ...Object.entries(custom).map(([id, d]) => ({ ...d, id, custom: true }))];
+}
 
 // 클린업: 저절로 풀리는 BS 를 지우고, 독 피해를 계산한다
-export function cleanup(status: StatusMap): { next: StatusMap; poison: number } {
+export function cleanup(status: StatusMap, defs: BsDef[] = BAD_STATUS): { next: StatusMap; poison: number } {
   const next: StatusMap = {};
-  for (const [id, v] of Object.entries(status) as [BsId, number][]) {
-    if (BAD_STATUS.find((b) => b.id === id)?.clear !== "cleanup") next[id] = v;
+  for (const [id, v] of Object.entries(status)) {
+    if (defs.find((b) => b.id === id)?.clear !== "cleanup") next[id] = v;
   }
   return { next, poison: (status.poison ?? 0) * 5 };
 }

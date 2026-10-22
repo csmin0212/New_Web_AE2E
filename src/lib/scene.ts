@@ -2,7 +2,8 @@
 
 import { onValue, push, ref, remove, serverTimestamp, set, update } from "firebase/database";
 import { rtdb } from "./firebase";
-import type { StatusMap, TurnState } from "./battleRules";
+import type { BsDef, StatusMap, TurnState } from "./battleRules";
+import type { DamageWindow } from "./damageRules";
 import type { TerrainDef } from "./terrain";
 import type { CutinPreset, ScenePreset, TransitionState } from "./fx";
 import type { ThemeId } from "./themes";
@@ -44,6 +45,7 @@ export type Scene = {
   actorScale: number; // 무대 인물 크기 (1 = 기본)
   showcase?: { partyBg?: string; castBg?: string; atlasBg?: string }; // 등장인물·지역 도감 페이지 배경 (GM)
   cast: Record<string, CastEntry>;
+  offstage: Record<string, true>; // GM 이 무대에서 내린 인물 ("char:id" / "name:이름")
   npcs: Record<string, NpcPreset>;
   presets: Record<string, ScenePreset>; // 저장해 둔 장면 (코코포리아의 씬)
   cutins: Record<string, CutinPreset>; // 컷인 모음
@@ -62,6 +64,7 @@ export const DEFAULT_SCENE: Scene = {
   talkView: "focus",
   actorScale: 1,
   cast: {},
+  offstage: {},
   npcs: {},
   presets: {},
   cutins: {},
@@ -89,6 +92,8 @@ export type Battle = {
   turn: TurnState;
   terrain: Record<string, string>; // "x_y" → 지형 id (맵 기믹)
   terrainDefs: Record<string, TerrainDef>; // 비어 있으면 기본 지형
+  damage?: DamageWindow; // 진행 중인 대미지 처리 (직전·직후 선언)
+  statusDefs: Record<string, Omit<BsDef, "id">>; // GM 이 만든 상태 이상·버프
   loaded?: boolean; // 서버 값을 한 번이라도 받았는지 (기본값과 구분)
 };
 
@@ -99,6 +104,7 @@ export const DEFAULT_BATTLE: Battle = {
   turn: { actor: null, round: 1, acted: {} },
   terrain: {},
   terrainDefs: {},
+  statusDefs: {},
 };
 
 // Realtime DB 는 undefined 를 거부한다
@@ -109,7 +115,7 @@ function clean<T>(v: T): T {
 export function subscribeScene(cid: string, cb: (s: Scene) => void) {
   return onValue(ref(rtdb, `scene/${cid}`), (snap) => {
     const v = (snap.val() ?? {}) as Partial<Scene>;
-    cb({ ...DEFAULT_SCENE, ...v, cast: v.cast ?? {}, npcs: v.npcs ?? {}, presets: v.presets ?? {}, cutins: v.cutins ?? {}, transition: v.transition ?? null });
+    cb({ ...DEFAULT_SCENE, ...v, cast: v.cast ?? {}, offstage: v.offstage ?? {}, npcs: v.npcs ?? {}, presets: v.presets ?? {}, cutins: v.cutins ?? {}, transition: v.transition ?? null });
   });
 }
 
@@ -146,11 +152,32 @@ export function findCast(scene: Scene, who: { charId?: string; name: string }): 
   return null;
 }
 
-export function toggleCast(cid: string, scene: Scene, who: { charId?: string; name: string; image?: string }) {
-  const key = findCast(scene, who);
-  if (key) return removeCast(cid, key);
+export function stageKeyOf(who: { charId?: string; name: string }) {
+  return who.charId ? `char:${who.charId}` : `name:${who.name}`;
+}
+
+// 무대에 있는지 — 고정 출연이거나, 내리지 않았는데 최근에 말해서 자동으로 선 경우
+export function isOnStage(scene: Scene, who: { charId?: string; name: string }, autoActorKeys: string[] = []) {
+  return !!findCast(scene, who) || (!scene.offstage[stageKeyOf(who)] && autoActorKeys.includes(stageKeyOf(who)));
+}
+
+// 무대에 세우기: 내린 표시를 지우고 고정 출연으로
+export async function putOnStage(cid: string, scene: Scene, who: { charId?: string; name: string; image?: string }) {
+  await update(ref(rtdb, `scene/${cid}/offstage`), { [stageKeyOf(who)]: null });
+  if (findCast(scene, who)) return;
   const slots = Object.values(scene.cast).map((c) => c.slot);
-  return addCast(cid, { name: who.name, image: who.image, charId: who.charId, slot: slots.length ? Math.max(...slots) + 1 : 0 });
+  await addCast(cid, { name: who.name, image: who.image, charId: who.charId, slot: slots.length ? Math.max(...slots) + 1 : 0 });
+}
+
+// 무대에서 내리기: 고정 출연이면 빼고, 말해도 자동으로 다시 오르지 않게 표시
+export async function takeOffStage(cid: string, scene: Scene, who: { charId?: string; name: string }) {
+  const key = findCast(scene, who);
+  if (key) await removeCast(cid, key);
+  await update(ref(rtdb, `scene/${cid}/offstage`), { [stageKeyOf(who)]: true });
+}
+
+export function toggleCast(cid: string, scene: Scene, who: { charId?: string; name: string; image?: string }) {
+  return findCast(scene, who) ? takeOffStage(cid, scene, who) : putOnStage(cid, scene, who);
 }
 
 // ── 전투 ────────────────────────────────────────────────
@@ -166,6 +193,8 @@ export function subscribeBattle(cid: string, cb: (b: Battle) => void) {
       turn: { actor: v.turn?.actor ?? null, round: v.turn?.round ?? meta.round, acted: v.turn?.acted ?? {} },
       terrain: v.terrain ?? {},
       terrainDefs: v.terrainDefs ?? {},
+      damage: v.damage ?? undefined,
+      statusDefs: v.statusDefs ?? {},
       loaded: true,
     });
   });
