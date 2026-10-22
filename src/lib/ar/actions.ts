@@ -7,7 +7,7 @@ import { setGauge, updateAr, updateArWithSummary } from "../campaigns";
 import { sendMessage } from "../chat";
 import { readDiceColor } from "../diceColor";
 import { roll, type RollResult } from "../dice";
-import { evalExpr, rollInline } from "../inline";
+import { alreadyRolled, evalExpr, rollInline } from "../inline";
 import type { Character, ChatCard, Speaker } from "../types";
 import { findRecovery } from "./recovery";
 import type { ArItem, ArSheet, ArSkill, DiceMod } from "./types";
@@ -50,8 +50,10 @@ export async function applySkill(ctx: ActCtx, c: Character, skill: ArSkill): Pro
   const cost = parseCost(skill.cost);
   if (cost && cost.mp > c.mp.cur) throw new Error(`MP가 모자라요. (필요 ${cost.mp}, 남은 ${c.mp.cur})`);
   if (cost && cost.hp > 0 && cost.hp >= c.hp.cur) throw new Error(`HP가 모자라요. (필요 ${cost.hp}, 남은 ${c.hp.cur})`);
+  const body = rollInline(skill.effect);
+  // 시트의 「굴림」 칸 — 효과 문장에서 같은 식을 이미 굴렸으면 다시 굴리지 않는다
   let extra: ChatCard["extra"];
-  if (skill.roll) {
+  if (skill.roll && !alreadyRolled(body, skill.roll)) {
     try {
       extra = { label: "굴림", result: evalExpr(skill.roll) };
     } catch {
@@ -66,7 +68,7 @@ export async function applySkill(ctx: ActCtx, c: Character, skill: ArSkill): Pro
     meta: [skill.timing && `【${skill.timing}】`, `SL ${skill.sl}${skill.slMax ? `/${skill.slMax}` : ""}`, skill.target, skill.range, skill.cost && `코스트 ${skill.cost}`].filter(
       (x): x is string => !!x && x !== "-",
     ),
-    body: rollInline(skill.effect),
+    body,
     extra,
     note:
       [cost?.mp && `MP ${cost.mp} 소모 (${c.mp.cur} → ${c.mp.cur - cost.mp})`, cost?.hp && `HP ${cost.hp} 소모 (${c.hp.cur} → ${c.hp.cur - cost.hp})`]

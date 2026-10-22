@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { evalExpr, rollInline } from "./inline";
+import { alreadyRolled, evalExpr, rollInline, sameExpr } from "./inline";
 
 const sixes = () => 0.99; // 모든 주사위 6
 const ones = () => 0;
@@ -48,5 +48,18 @@ describe("스킬 판정 굴림", () => {
     const one = () => 0;
     expect(checkOutcome(rollInline("마술 판정: [[2D+3]]", one))).toBe("fumble");
     expect(checkOutcome(rollInline("대미지 [[2D+3]]", six))).toBeNull(); // 판정이 아니면 크리티컬 아님
+  });
+});
+
+describe("같은 굴림 두 번 안 하기", () => {
+  it("2D 와 2d6, 띄어쓰기는 같은 식", () => {
+    expect(sameExpr("6D+25", "6d6 + 25")).toBe(true);
+    expect(sameExpr("5d6+115", "5D+115")).toBe(true);
+    expect(sameExpr("6D+25", "5d6+25")).toBe(false);
+  });
+  it("효과에서 이미 굴린 식이면 true", () => {
+    const body = rollInline("명중 판정은 [[6D+25]], 대미지는 [[5d6+115]]");
+    expect(alreadyRolled(body, "6d6+25")).toBe(true);
+    expect(alreadyRolled(body, "2d6")).toBe(false);
   });
 });

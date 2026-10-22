@@ -143,3 +143,14 @@ export function checkOutcome(segments: Segment[]): "critical" | "fumble" | null 
 export function hasInline(text: string): boolean {
   return /\[\[[^\]]+\]\]/.test(text);
 }
+
+// 같은 주사위 식인지 ("6D+25" = "6d6 + 25") — 스킬 카드에서 같은 굴림을 두 번 하지 않게
+export function sameExpr(a: string, b: string): boolean {
+  const norm = (e: string) => e.toLowerCase().replace(/\s+/g, "").replace(/^\+/, "").replace(/(\d+)d(?!\d)/g, "$1d6");
+  return norm(a) === norm(b);
+}
+
+// 효과 문장 안에서 이미 굴린 식이면 따로 굴리지 않는다
+export function alreadyRolled(segments: Segment[], expr: string): boolean {
+  return segments.some((seg) => typeof seg !== "string" && sameExpr(seg.expr, expr));
+}
