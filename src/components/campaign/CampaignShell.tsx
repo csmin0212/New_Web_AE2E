@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import type { ReactNode } from "react";
 import { LoginButton } from "@/components/LoginButton";
 import { SessionProvider, useSession } from "@/components/session/SessionContext";
-import { ThemeRoot } from "@/components/session/ThemeRoot";
+import { LastThemeBox, ThemeRoot } from "@/components/session/ThemeRoot";
 import { useAuth } from "@/lib/auth";
 import { useCampaign } from "@/lib/useCampaign";
 
@@ -23,23 +23,23 @@ export function CampaignShell({ active, children }: { active: CampaignTab; child
   const { user, loading } = useAuth();
   const state = useCampaign(cid, user?.uid);
 
-  if (loading) return <Center>불러오는 중…</Center>;
+  if (loading) return <Center cid={cid}>불러오는 중…</Center>;
   if (!user)
     return (
-      <Center>
+      <Center cid={cid}>
         <LoginButton className="w-72" />
       </Center>
     );
   if (state.status === "denied")
     return (
-      <Center>
+      <Center cid={cid}>
         <p>이 캠페인에 참가하지 않았거나 없는 캠페인이에요.</p>
         <Link href="/" className="btn mt-4">
           홈으로
         </Link>
       </Center>
     );
-  if (state.status === "loading") return <Center>불러오는 중…</Center>;
+  if (state.status === "loading") return <Center cid={cid}>불러오는 중…</Center>;
 
   return (
     <SessionProvider cid={cid} user={user} campaign={state.campaign} members={state.members} characters={state.characters}>
@@ -76,6 +76,10 @@ function ShellHeader({ active }: { active: CampaignTab }) {
   );
 }
 
-function Center({ children }: { children: ReactNode }) {
-  return <main className="grid min-h-screen place-items-center p-6 text-center text-muted">{children}</main>;
+function Center({ cid, children }: { cid: string; children: ReactNode }) {
+  return (
+    <LastThemeBox cid={cid}>
+      <main className="grid h-full place-items-center p-6 text-center text-muted">{children}</main>
+    </LastThemeBox>
+  );
 }

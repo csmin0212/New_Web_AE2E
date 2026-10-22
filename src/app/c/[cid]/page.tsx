@@ -17,7 +17,7 @@ import { PhaseCutin } from "@/components/session/PhaseCutin";
 import { ResizeHandle, useResizable } from "@/components/session/Resizable";
 import { SessionProvider, useSession } from "@/components/session/SessionContext";
 import { TalkStage } from "@/components/session/TalkStage";
-import { ThemeRoot } from "@/components/session/ThemeRoot";
+import { LastThemeBox, ThemeRoot } from "@/components/session/ThemeRoot";
 import { TopBar } from "@/components/session/TopBar";
 import { useAuth } from "@/lib/auth";
 import { useCampaign } from "@/lib/useCampaign";
@@ -27,17 +27,17 @@ export default function CampaignPage() {
   const { user, loading } = useAuth();
   const state = useCampaign(cid, user?.uid);
 
-  if (loading) return <Center>불러오는 중…</Center>;
+  if (loading) return <Center cid={cid}>불러오는 중…</Center>;
   if (!user) {
     return (
-      <Center>
+      <Center cid={cid}>
         <LoginButton className="w-72" />
       </Center>
     );
   }
   if (state.status === "denied") {
     return (
-      <Center>
+      <Center cid={cid}>
         <p>이 캠페인에 참가하지 않았거나 없는 캠페인이에요.</p>
         <Link href="/" className="btn mt-4">
           홈으로
@@ -45,7 +45,7 @@ export default function CampaignPage() {
       </Center>
     );
   }
-  if (state.status === "loading") return <Center>불러오는 중…</Center>;
+  if (state.status === "loading") return <Center cid={cid}>불러오는 중…</Center>;
 
   return (
     <SessionProvider cid={cid} user={user} campaign={state.campaign} members={state.members} characters={state.characters}>
@@ -101,6 +101,10 @@ function SessionLayout() {
   );
 }
 
-function Center({ children }: { children: React.ReactNode }) {
-  return <main className="grid min-h-screen place-items-center p-6 text-center text-muted">{children}</main>;
+function Center({ cid, children }: { cid: string; children: React.ReactNode }) {
+  return (
+    <LastThemeBox cid={cid}>
+      <main className="grid h-full place-items-center p-6 text-center text-muted">{children}</main>
+    </LastThemeBox>
+  );
 }

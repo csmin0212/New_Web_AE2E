@@ -50,6 +50,7 @@ export type Scene = {
   presets: Record<string, ScenePreset>; // 저장해 둔 장면 (코코포리아의 씬)
   cutins: Record<string, CutinPreset>; // 컷인 모음
   transition: TransitionState | null; // 마지막 장면 전환 (모두의 화면에 전환 효과)
+  loaded?: boolean; // 서버 값을 한 번이라도 받았는지 (기본값과 구분)
 };
 
 export const DEFAULT_SCENE: Scene = {
@@ -115,7 +116,7 @@ function clean<T>(v: T): T {
 export function subscribeScene(cid: string, cb: (s: Scene) => void) {
   return onValue(ref(rtdb, `scene/${cid}`), (snap) => {
     const v = (snap.val() ?? {}) as Partial<Scene>;
-    cb({ ...DEFAULT_SCENE, ...v, cast: v.cast ?? {}, offstage: v.offstage ?? {}, npcs: v.npcs ?? {}, presets: v.presets ?? {}, cutins: v.cutins ?? {}, transition: v.transition ?? null });
+    cb({ ...DEFAULT_SCENE, ...v, cast: v.cast ?? {}, offstage: v.offstage ?? {}, npcs: v.npcs ?? {}, presets: v.presets ?? {}, cutins: v.cutins ?? {}, transition: v.transition ?? null, loaded: true });
   });
 }
 
