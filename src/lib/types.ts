@@ -1,6 +1,7 @@
 import type { ArSheet } from "./ar/types";
 import type { RollResult } from "./dice";
 import type { Segment } from "./inline";
+import type { RevealConfig } from "./reveal";
 import type { ParsedSheet } from "./sheet/parse";
 
 export type Role = "gm" | "player";
@@ -28,7 +29,9 @@ export type Gauge = { cur: number; max: number };
 // Firestore campaigns/{cid}/characters/{chid}
 export type Character = {
   id: string;
-  kind: "pc" | "npc" | "enemy"; // enemy 는 GM 만 읽을 수 있다 (HP·능력치 비공개)
+  kind: "pc" | "npc" | "enemy";
+  hidden?: boolean; // true 면 시트를 GM 만 읽는다. 플레이어는 reveals 의 「공개 본」만 본다
+  reveal?: RevealConfig; // 비공개일 때 플레이어에게 보여 줄 항목 (GM 만 읽는다)
   ownerUid: string | null; // 조작 권한이 있는 플레이어 (GM은 항상 가능)
   sheet: ParsedSheet; // 요약 (구글 시트 사본, 또는 ar 에서 만든 요약) — 이름·능력치 표시에 쓴다
   ar?: ArSheet; // 툴 안 시트 (Roll20·ARON 가져오기, 직접 만든 에너미). 있으면 이걸로 굴린다

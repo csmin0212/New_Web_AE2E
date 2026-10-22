@@ -8,6 +8,7 @@ import {
   deleteField,
   doc,
   getDoc,
+  onSnapshot,
   setDoc,
   updateDoc,
   writeBatch,
@@ -15,6 +16,7 @@ import {
 import { db, rtdb } from "./firebase";
 import { derive } from "./ar/derive";
 import type { ArSheet } from "./ar/types";
+import type { RevealDoc } from "./reveal";
 import type { ParsedSheet } from "./sheet/parse";
 import type { Campaign, Character, Gauge, Member } from "./types";
 
@@ -123,6 +125,7 @@ export async function addCharacter(
   const ref_ = doc(collection(db, "campaigns", cid, "characters"));
   const character: Omit<Character, "id"> = {
     kind: opts.kind,
+    hidden: opts.kind === "enemy", // 에너미는 처음엔 비공개 (플레이어 공개 설정에서 바꾼다)
     ownerUid: opts.ownerUid,
     sheet,
     hp: gauge(sheet.hp),
@@ -191,6 +194,7 @@ export async function addArCharacter(
   const ref_ = doc(collection(db, "campaigns", cid, "characters"));
   const character: Omit<Character, "id"> = {
     kind: opts.kind,
+    hidden: opts.kind === "enemy", // 에너미는 처음엔 비공개 (플레이어 공개 설정에서 바꾼다)
     ownerUid: opts.ownerUid,
     sheet: summarize(opts.ar, opts),
     ar: opts.ar,
@@ -227,7 +231,7 @@ export async function setGauge(cid: string, charId: string, key: "hp" | "mp" | "
 export async function updateCharacter(
   cid: string,
   charId: string,
-  patch: Partial<Pick<Character, "ownerUid" | "kind" | "portrait" | "standing" | "token" | "color">>,
+  patch: Partial<Pick<Character, "ownerUid" | "kind" | "portrait" | "standing" | "token" | "color" | "hidden" | "reveal">>,
 ) {
   // 비운 칸(undefined)은 필드를 지운다 — Firestore 는 undefined 값을 받지 않는다
   const data = Object.fromEntries(Object.entries(patch).map(([k, v]) => [k, v === undefined ? deleteField() : v]));
@@ -238,6 +242,19 @@ export async function updateCharacter(
 export async function renameCharacter(cid: string, c: Character, name: string) {
   if (c.ar) return updateArWithSummary(cid, c, { ...c.ar, profile: { ...c.ar.profile, name } });
   await updateDoc(doc(db, "campaigns", cid, "characters", c.id), { "sheet.name": name });
+}
+
+// ── 플레이어 공개 본 (campaigns/{cid}/reveals/{charId}) — GM 이 쓰고 모두 읽는다 ──
+export function subscribeReveals(cid: string, cb: (m: Record<string, RevealDoc>) => void) {
+  return onSnapshot(collection(db, "campaigns", cid, "reveals"), (snap) =>
+    cb(Object.fromEntries(snap.docs.map((d) => [d.id, d.data() as RevealDoc]))),
+  );
+}
+export async function writeReveal(cid: string, d: RevealDoc) {
+  await setDoc(doc(db, "campaigns", cid, "reveals", d.charId), plain(d));
+}
+export async function deleteReveal(cid: string, charId: string) {
+  await deleteDoc(doc(db, "campaigns", cid, "reveals", charId));
 }
 
 export async function removeCharacter(cid: string, charId: string) {

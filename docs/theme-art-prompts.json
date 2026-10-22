@@ -1,0 +1,87 @@
+{
+  "generator": "Built-in image_gen",
+  "date": "2026-10-22",
+  "processing": "Resize to slot dimensions, preserve aspect ratio with center crop, WebP quality up to 84, maximum 500000 bytes per file.",
+  "assets": [
+    {
+      "file": "public/themes/classic/stage.webp",
+      "prompt": "Use case: stylized-concept. Generate a single background image for a fantasy tabletop VTT. Asset classic/stage. 1920x1080 landscape 16:9. Ancient fantasy library hall, candlelight, warm amber haze, dark brown aged parchment and gold ornament palette, softly blurred distant shelves and gilded arches, depth of field. Center and lower area calm and uncluttered as characters will be overlaid. Rich atmospheric background art, soft lighting. No text, no lettering, no characters, no people, no creatures, no watermark. Save the generated image and return the local saved file path."
+    },
+    {
+      "file": "public/themes/classic/party.webp",
+      "prompt": "Use case: stylized-concept. Single original background art asset for fantasy tabletop VTT. Grand fantasy theater stage, golden filigree arch across top, dark velvet curtains on both sides, warm amber spotlight above, brown parchment and gold palette. Wide 2400x1000 panorama 12:5. Keep central 65 percent empty and quiet for a row of overlaid adventurers; decorations at sides and top. Soft lighting. No text, no lettering, no characters, no people, no creatures, no watermark. Return saved local file path."
+    },
+    {
+      "file": "public/themes/classic/battle.webp",
+      "prompt": "Use case: stylized-concept. Single original background art asset for fantasy tabletop VTT. Strict orthographic top-down view of old weathered stone dungeon floor, warm brown cobblestones with soft diffuse torch lighting. 2048x1280 16:10. Entire image is flat floor, no horizon, no walls, no props, no grid overlay, no strong patterns, subtle joints and low contrast so game tokens are legible. Soft lighting. No text, no lettering, no characters, no people, no creatures, no watermark. Return saved local file path."
+    },
+    {
+      "file": "public/themes/classic/page.webp",
+      "prompt": "Use case: stylized-concept. Single original background art asset for fantasy tabletop VTT. Aged parchment texture, dark brown umber with very faint gold filigree only at outer border. 1920x1080 16:9. Extremely subtle soft low contrast texture for behind readable journal text, nearly uniform center; no objects, no scene. Soft lighting. No text, no lettering, no characters, no people, no creatures, no watermark. Return saved local file path."
+    },
+    {
+      "file": "public/themes/gothic/stage.webp",
+      "prompt": "Use case: stylized-concept. Single original VTT background art. 1920x1080 16:9. Gothic cathedral interior at night, monochrome stone, distant black and white harlequin floor, a few rose pink and crimson petals near outer sides, moonlight through stained glass, mist and depth of field. Soft blurred background with quiet uncluttered center and lower foreground for overlaid characters. Soft lighting. No text, no lettering, no characters, no people, no creatures, no watermark. Return saved local file path."
+    },
+    {
+      "file": "public/themes/gothic/party.webp",
+      "prompt": "Use case: stylized-concept. Single original VTT background art. 2400x1000 panorama 12:5. Gothic opera stage, black and white diamond pattern accents at sides, roses climbing outer pillars, pointed arch across top, cold soft spotlight. Deep black, ivory and rose pink palette. Empty calm central 65 percent for a row of overlaid adventurers. Ornament on sides and above. Soft lighting. No text, no lettering, no characters, no people, no creatures, no watermark. Return saved local file path."
+    },
+    {
+      "file": "public/themes/gothic/battle.webp",
+      "prompt": "Use case: stylized-concept. Single original VTT background art. 2048x1280 16:10. Strict orthographic top-down gothic marble floor, subdued charcoal and gray-white checkerboard stone slabs, soft veining, sparse rose pink petals near corners only. Flat floor fills entire image, diffuse cold lighting, low contrast muted whites. No walls, no horizon, no objects, no grid overlay; token readability essential. Soft lighting. No text, no lettering, no characters, no people, no creatures, no watermark. Return saved local file path."
+    },
+    {
+      "file": "public/themes/gothic/page.webp",
+      "prompt": "Use case: stylized-concept. Single original VTT background art. 1920x1080 16:9. Very subtle soft black and charcoal harlequin diamond pattern texture, tiny hint of desaturated rose pink only at corners, extremely low contrast, almost uniform dark center. A quiet texture behind readable journal text, no scene, no objects. Soft lighting. No text, no lettering, no characters, no people, no creatures, no watermark. Return saved local file path."
+    },
+    {
+      "file": "public/themes/phantom/stage.webp",
+      "prompt": "Use case: stylized-concept. Single original tabletop VTT background art. 1920x1080 16:9. Stylized night city street, red black and white graphic anime background, halftone dots and angular diagonal accents around outer edges, moody distant city glow. Soft atmospheric depth, empty calm central and lower street for overlaid characters. No signs or writing. Soft lighting. No text, no lettering, no characters, no people, no creatures, no watermark, no logos. Return saved local file path."
+    },
+    {
+      "file": "public/themes/phantom/party.webp",
+      "prompt": "Use case: stylized-concept. Single original tabletop VTT background art. 2400x1000 panorama 12:5. Bold red and black graphic backdrop with a few white edge accents, diagonal stripes and halftone comic burst framing only outer sides and upper edges. Wide central 65 percent is empty muted black-red space for a row of adventurers. Sophisticated graphic anime game style, not a scene with people. Soft lighting. No text, no lettering, no characters, no people, no creatures, no watermark, no logos. Return saved local file path."
+    },
+    {
+      "file": "public/themes/phantom/battle.webp",
+      "prompt": "Use case: stylized-concept. Single original tabletop VTT background art. 2048x1280 16:10. Strict orthographic top-down flat graphic floor, dark charcoal and muted deep red diagonal tile accents with subtle halftone texture. Stylized graphic game arena surface, no perspective, no horizon, no walls, no props, no grid overlay. Restrained low contrast so tokens remain legible, no white high contrast areas. Soft lighting. No text, no lettering, no characters, no people, no creatures, no watermark, no logos. Return saved local file path."
+    },
+    {
+      "file": "public/themes/phantom/page.webp",
+      "prompt": "Use case: stylized-concept. Single original tabletop VTT background art. 1920x1080 16:9. Minimal subtle dark red halftone dots on nearly black, barely visible diagonal graphic texture at outer edges. Extremely low contrast and calm, soft pattern behind readable text, mostly uniform black center, no scene, no objects. Soft lighting. No text, no lettering, no characters, no people, no creatures, no watermark, no logos. Return saved local file path."
+    },
+    {
+      "file": "public/themes/arcane/stage.webp",
+      "prompt": "Use case: stylized-concept. Single original tabletop VTT background art. 1920x1080 16:9. Starry night over a quiet magical tower seen from a spacious empty terrace. Deep navy sky, silver magical circular ornaments glowing faintly near the upper sides, dreamy soft blue light and atmospheric depth of field. Quiet empty center and lower terrace for overlaid characters, soft blurred distant tower. Soft lighting. No text, no lettering, no characters, no people, no creatures, no watermark. Return saved local file path."
+    },
+    {
+      "file": "public/themes/arcane/party.webp",
+      "prompt": "Use case: stylized-concept. Single original tabletop VTT background art. 2400x1000 panorama 12:5. Celestial observatory stage open to a navy starfield, delicate silver astronomical arches and constellations framing top and sides, faint silver magic circle on lower floor. Central 65 percent empty and calm for a row of adventurers. Soft blue light, refined dreamy silver and midnight navy. Soft lighting. No text, no lettering, no characters, no people, no creatures, no watermark. Return saved local file path."
+    },
+    {
+      "file": "public/themes/arcane/battle.webp",
+      "prompt": "Use case: stylized-concept. Single original tabletop VTT background art. 2048x1280 16:10. Strict orthographic top-down dark navy stone floor with a faint silver magic circle, abstract geometric arcane symbols, tiny soft blue glow. Very restrained and low contrast, broad calm dark space, entire frame flat floor. No perspective, no horizon, no walls, no objects, no grid overlay. Game tokens must be readable. Soft lighting. No text, no lettering, no characters, no people, no creatures, no watermark. Return saved local file path."
+    },
+    {
+      "file": "public/themes/arcane/page.webp",
+      "prompt": "Use case: stylized-concept. Single original tabletop VTT background art. 1920x1080 16:9. Deep navy starfield texture with very faint thin silver constellation lines and sparse tiny dim stars mostly near edges. Extremely subtle soft low contrast, nearly uniform navy center behind readable journal text. No bright stars, no nebula centerpiece, no objects. Soft lighting. No text, no lettering, no characters, no people, no creatures, no watermark. Return saved local file path."
+    },
+    {
+      "file": "public/themes/online/stage.webp",
+      "prompt": "Use case: stylized-concept. Single original tabletop VTT background art. 1920x1080 16:9. Bright modern city plaza under clear blue sky, white futuristic buildings at sides and distance, soft clouds, crisp polished anime game background art, sky blue and white palette. Soft atmospheric depth of field, empty calm central and lower plaza for overlaid characters. No signs, no writing, no logos. Soft lighting. No text, no lettering, no characters, no people, no creatures, no watermark. Return saved local file path."
+    },
+    {
+      "file": "public/themes/online/party.webp",
+      "prompt": "Use case: stylized-concept. Single original tabletop VTT background art. 2400x1000 panorama 12:5. Futuristic online RPG lobby stage, airy white and sky blue architecture framing top and sides, translucent holographic HUD panels on both sides with abstract thin lines only, no writing. Center 65 percent empty clean open space for row of adventurers. Bright soft daylight, polished anime game background art. Soft lighting. No text, no lettering, no characters, no people, no creatures, no watermark. Return saved local file path."
+    },
+    {
+      "file": "public/themes/online/battle.webp",
+      "prompt": "Use case: stylized-concept. Single original tabletop VTT background art. 2048x1280 16:10. Strict orthographic top-down clean white and very pale blue sci-fi game arena floor, broad white tile panels and very faint cyan holographic glow at outer seams only. No glowing grid overlay, no drawn grid, no perspective, no horizon, no walls, no props. Soft diffuse light, low contrast for readable game tokens, minimal texture. Soft lighting. No text, no lettering, no characters, no people, no creatures, no watermark. Return saved local file path."
+    },
+    {
+      "file": "public/themes/online/page.webp",
+      "prompt": "Use case: stylized-concept. Single original tabletop VTT background art. 1920x1080 16:9. Very light sky blue gradient with extremely faint white hexagon HUD pattern near outer edges. Minimal soft low contrast texture for behind readable journal text. Nearly uniform pale sky blue center, no objects, no scene, no strong highlights. Soft lighting. No text, no lettering, no characters, no people, no creatures, no watermark. Return saved local file path."
+    }
+  ]
+}

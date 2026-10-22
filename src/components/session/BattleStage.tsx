@@ -8,16 +8,18 @@ import { BAD_STATUS, CONDITION_LABEL, effectiveInit, endTurn, giveTurn, initiati
 import { cellDistance, clearPointer, METERS_PER_CELL, setPointer, subscribePointers, type Cell, type Pointer } from "@/lib/pointer";
 import { moveToken, removeToken, setTokenSize, setTokenStatus, updateToken, type Token } from "@/lib/scene";
 import { splitTitle } from "@/lib/stage";
+import type { RevealDoc } from "@/lib/reveal";
 import type { Character, Gauge } from "@/lib/types";
 import { useContextMenu, type MenuItem } from "../ContextMenu";
 import { paintCells, terrainDefsOf } from "@/lib/battleMaps";
 import { canPlace, cellKey, TERRAIN_EFFECT_LABEL } from "@/lib/terrain";
 import { ActionDock } from "./ActionDock";
+import { RevealDialog } from "./RevealDialog";
 import { TerrainPalette } from "./TerrainPalette";
 import { openSheet } from "./PartyBar";
 import { useSession } from "./SessionContext";
 
-type Unit = Token & { id: string; x: number; y: number; baseInit: number; character?: Character };
+type Unit = Token & { id: string; x: number; y: number; baseInit: number; character?: Character; reveal?: RevealDoc };
 type Tool = "move" | "ruler" | "ping" | "paint";
 
 const SIDE_RING: Record<Token["side"], string> = {
@@ -28,11 +30,12 @@ const SIDE_RING: Record<Token["side"], string> = {
 
 // 전투 모드 — 행동 순서 띠 + 그리드 + 유닛 카드 + (내 차례면) 행동 바
 export function BattleStage() {
-  const { battle, characters, isGM, user, cid } = useSession();
+  const { battle, characters, isGM, user, cid, reveals } = useSession();
   const turn = battle.turn;
   const menu = useContextMenu();
   const [tool, setTool] = useState<Tool>("move");
   const [brush, setBrush] = useState<string | null>("wall");
+  const [revealFor, setRevealFor] = useState<string | null>(null);
 
   const units: Unit[] = useMemo(
     () =>
@@ -44,8 +47,10 @@ export function BattleStage() {
         x: battle.pos[id]?.x ?? 0,
         y: battle.pos[id]?.y ?? 0,
         character: t.charId ? characters.find((c) => c.id === t.charId) : undefined,
+        // 플레이어: 비공개 캐릭터는 GM 이 연 이름·그림만
+        ...(!isGM && t.charId && reveals[t.charId] ? { name: reveals[t.charId].name, image: reveals[t.charId].image, reveal: reveals[t.charId] } : {}),
       })),
-    [battle.tokens, battle.pos, characters],
+    [battle.tokens, battle.pos, characters, reveals, isGM],
   );
   const order = useMemo(() => initiativeOrder(units), [units]);
   const current = units.find((u) => u.id === turn.actor);
@@ -80,6 +85,9 @@ export function BattleStage() {
   function unitMenu(e: MouseEvent, u: Unit) {
     const items: MenuItem[] = [{ title: splitTitle(u.name).name + (turn.acted[u.id] ? " · 행동 끝" : "") }];
     if (u.character) items.push({ label: "시트 열기", icon: "📜", onSelect: () => openSheet(u.character!.id) });
+    if (isGM && u.character && u.character.kind !== "pc")
+      items.push({ label: "플레이어 공개 설정…", hint: u.character.hidden ? "골라서 공개" : "전부 공개", icon: u.character.hidden ? "🔒" : "👁", onSelect: () => setRevealFor(u.character!.id) });
+    if (!isGM && !u.character && u.charId && u.reveal) items.push({ label: "알려진 정보", icon: "❔", onSelect: () => openSheet(u.charId!) });
     if (canControl(u))
       items.push({
         label: "행동하기",
@@ -249,6 +257,10 @@ export function BattleStage() {
         <UnitCards units={order} currentId={turn.actor ?? undefined} onMenu={unitMenu} />
       </div>
       {menu.node}
+      {(() => {
+        const c = revealFor ? characters.find((x) => x.id === revealFor) : undefined;
+        return c ? <RevealDialog character={c} onClose={() => setRevealFor(null)} /> : null;
+      })()}
     </div>
   );
 }
@@ -669,8 +681,8 @@ function Grid({
           const at = drag?.id === u.id ? drag.to : u;
           const movable = canMove(u);
           const targeted = targetIds.includes(u.id);
-          // 플레이어에게는 에너미 시트가 오지 않으므로 HP 막대 대신 상태만
-          const hp = u.character?.hp ?? (isGM ? u.hp : undefined);
+          // 플레이어에게는 비공개 시트가 오지 않으므로, GM 이 연 만큼만 (숫자 / 비율 막대 / 상태)
+          const hp = unitHp(u, isGM);
           const enemy = u.side === "enemy" || u.character?.kind === "enemy";
           const size = u.size ?? 1;
           const box = size * cell;
@@ -811,8 +823,8 @@ function UnitCards({ units, currentId, onMenu }: { units: Unit[]; currentId?: st
     <div className="hidden w-52 shrink-0 flex-col gap-1.5 overflow-y-auto border-l border-line/60 bg-black/20 p-2 md:flex">
       <div className="font-latin px-1 text-[10px] text-muted">UNITS</div>
       {units.map((u) => {
-        const hp = u.character?.hp ?? (isGM ? u.hp : undefined);
-        const mp = u.character?.mp;
+        const hp = unitHp(u, isGM);
+        const mp = u.character?.mp ?? u.reveal?.mp;
         return (
           <div
             key={u.id}
@@ -823,7 +835,7 @@ function UnitCards({ units, currentId, onMenu }: { units: Unit[]; currentId?: st
             <TokenFace unit={u} size={30} active={currentId === u.id} />
             <div className="min-w-0 flex-1 text-[11px]">
               <div className="truncate font-bold">{splitTitle(u.name).name}</div>
-              {hp && <MiniGauge label="HP" g={hp} color="bg-hp" />}
+              {hp && <MiniGauge label="HP" g={hp} color="bg-hp" pct={u.reveal?.hpBar != null && !u.reveal.hp} />}
               {mp && mp.max > 0 && <MiniGauge label="MP" g={mp} color="bg-mp" />}
               {u.character && u.character.kind !== "enemy" && u.character.fate.max > 0 && <MiniGauge label="FT" g={u.character.fate} color="bg-fate" />}
               {u.status && Object.keys(u.status).length > 0 && (
@@ -845,7 +857,15 @@ function UnitCards({ units, currentId, onMenu }: { units: Unit[]; currentId?: st
   );
 }
 
-function MiniGauge({ label, g, color }: { label: string; g: Gauge; color: string }) {
+// 유닛의 HP — 읽을 수 있는 시트, 공개 본의 숫자, 공개 본의 비율(0~100) 순
+function unitHp(u: Unit, isGM: boolean): Gauge | undefined {
+  if (u.character) return u.character.hp;
+  if (u.reveal?.hp) return u.reveal.hp;
+  if (u.reveal?.hpBar != null) return { cur: u.reveal.hpBar, max: 100 };
+  return isGM ? u.hp : undefined;
+}
+
+function MiniGauge({ label, g, color, pct: asPercent }: { label: string; g: Gauge; color: string; pct?: boolean }) {
   const pct = g.max > 0 ? Math.max(0, Math.min(100, (g.cur / g.max) * 100)) : 0;
   return (
     <div className="flex items-center gap-1">
@@ -854,7 +874,7 @@ function MiniGauge({ label, g, color }: { label: string; g: Gauge; color: string
         <div className={`h-full ${color}`} style={{ width: `${pct}%` }} />
       </div>
       <span className="w-12 text-right tabular-nums">
-        {g.cur}/{g.max}
+        {asPercent ? `${g.cur}%` : `${g.cur}/${g.max}`}
       </span>
     </div>
   );

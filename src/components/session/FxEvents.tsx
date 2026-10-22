@@ -11,7 +11,7 @@ const FRESH_MS = 6000; // 이보다 오래된 굴림·이벤트는 다시 틀지
 // 화면 연출을 겹치지 않게 하나씩 튼다.
 //   GM 이 보낸 것(fx/{cid}/event) + 내 화면이 알아서 트는 것(차례·라운드·크리티컬 …)
 export function FxEvents() {
-  const { cid, battle, messages, characters, user, isGM } = useSession();
+  const { cid, battle, messages, characters, user, isGM, reveals } = useSession();
   const [queue, setQueue] = useState<(FxEvent & { key: number })[]>([]);
   const seq = useRef(0);
   const push = (e: FxEvent) => setQueue((q) => [...q.slice(-4), { ...e, key: ++seq.current }]);
@@ -46,11 +46,14 @@ export function FxEvents() {
     const c = t.charId ? characters.find((x) => x.id === t.charId) : undefined;
     const mine = !!t.ownerUid && t.ownerUid === user.uid;
     const enemy = t.side === "enemy";
+    // 플레이어 화면: 비공개 캐릭터는 GM 이 연 이름·그림만
+    const r = !isGM && t.charId ? reveals[t.charId] : undefined;
+    const name = splitTitle(r ? r.name : t.name).name;
     push({
       kind: "turn",
-      text: mine ? "YOUR TURN" : enemy ? "ENEMY TURN" : `${splitTitle(t.name).name}`,
-      sub: `${splitTitle(t.name).name}의 차례`,
-      image: t.image ?? c?.portrait ?? c?.token,
+      text: mine ? "YOUR TURN" : enemy ? "ENEMY TURN" : name,
+      sub: `${name}의 차례`,
+      image: r ? r.image : (t.image ?? c?.portrait ?? c?.token),
       color: c?.color,
       mine,
       enemy,

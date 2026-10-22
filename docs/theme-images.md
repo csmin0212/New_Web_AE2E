@@ -3,6 +3,8 @@
 테마마다 아래 4장을 만들어 주면, 그 테마의 빈 화면에 자동으로 깔린다.
 그림이 없는 자리는 지금처럼 색·무늬 배경이 나온다 (하나씩 채워도 된다).
 
+2026-10-22: 5개 테마 × 4자리의 기본 배경 20장을 생성해 `public/themes/`에 WebP로 저장하고 `src/lib/themeArt.ts`에서 활성화했다. 생성에는 내장 `image_gen`을 사용했으며, 최종 프롬프트는 [theme-art-prompts.json](./theme-art-prompts.json)에 기록했다.
+
 ## 넣는 곳
 
 - 파일 위치: `public/themes/<테마 ID>/<자리>.webp`

@@ -2,6 +2,7 @@
 
 import { parseCost } from "../battleRules";
 import { faceOf, stageImageOf } from "../characterArt";
+import { imageVisible, isSkillRevealed, publicName, REVEAL_DEFAULT } from "../reveal";
 import { setGauge, updateAr, updateArWithSummary } from "../campaigns";
 import { sendMessage } from "../chat";
 import { readDiceColor } from "../diceColor";
@@ -16,7 +17,8 @@ import type { ArItem, ArSheet, ArSkill, DiceMod } from "./types";
 export type ActCtx = { cid: string; uid: string; isGM: boolean; gmUid: string };
 
 export function speakerOf(c: Character, uid: string): Speaker {
-  return { name: c.sheet.name, uid, charId: c.id, image: stageImageOf(c), avatar: faceOf(c), color: c.color };
+  const img = imageVisible(c);
+  return { name: publicName(c), uid, charId: c.id, image: img ? stageImageOf(c) : undefined, avatar: img ? faceOf(c) : undefined, color: c.color };
 }
 
 async function saveAr(ctx: ActCtx, c: Character, ar: ArSheet) {
@@ -73,7 +75,17 @@ export async function applySkill(ctx: ActCtx, c: Character, skill: ArSkill): Pro
   };
   if (cost?.mp) await setGauge(ctx.cid, c.id, "mp", { ...c.mp, cur: c.mp.cur - cost.mp });
   if (cost?.hp) await setGauge(ctx.cid, c.id, "hp", { ...c.hp, cur: c.hp.cur - cost.hp });
-  await sendMessage(ctx.cid, { uid: ctx.uid, speaker: speakerOf(c, ctx.uid), kind: "card", text: "", card, diceColor: readDiceColor() });
+  const cfg = c.reveal ?? REVEAL_DEFAULT;
+  if (c.hidden && !isSkillRevealed(cfg, skill.id)) {
+    // 공개 안 한 스킬: 모두에게는 이름만, GM 에게는 전체 카드
+    const shown: ChatCard = { tag: "skill", title: skill.name, color: skill.color, glow: skill.glow, meta: skill.timing ? [`【${skill.timing}】`] : [], body: ["(효과는 비공개)"] };
+    await sendMessage(ctx.cid, { uid: ctx.uid, speaker: speakerOf(c, ctx.uid), kind: "card", text: "", card: shown, diceColor: readDiceColor() });
+    await sendMessage(ctx.cid, { uid: ctx.uid, speaker: speakerOf(c, ctx.uid), kind: "card", text: "", card: { ...card, note: `(GM만) ${card.note ?? ""}`.trim() }, secret: true }, [ctx.gmUid]);
+    return card;
+  }
+  // 공개 스킬이라도 MP 를 안 열었으면 소모 기록은 가린다
+  const pub = c.hidden && !cfg.mp ? { ...card, note: undefined } : card;
+  await sendMessage(ctx.cid, { uid: ctx.uid, speaker: speakerOf(c, ctx.uid), kind: "card", text: "", card: pub, diceColor: readDiceColor() });
   return card;
 }
 

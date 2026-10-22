@@ -20,6 +20,7 @@ import {
 import { sendMessage } from "./chat";
 import type { Battle } from "./scene";
 import { DEFAULT_TERRAINS, terrainEffectAt } from "./terrain";
+import { publicName } from "./reveal";
 import { db, rtdb } from "./firebase";
 import type { Character } from "./types";
 
@@ -77,7 +78,7 @@ export async function applyToCharacter(
 }
 
 function describe(target: Character, r: EffectResult, e: { kind: EffectKind; amount: number; dmgType?: DamageType }, hidden: boolean): string {
-  const name = target.sheet.name;
+  const name = publicName(target);
   if (e.kind === "damage") {
     const type = DAMAGE_LABEL[e.dmgType ?? "physical"];
     if (hidden) {

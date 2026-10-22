@@ -9,6 +9,8 @@ import { ArSheetView } from "../ArSheetView";
 import { CharacterCard } from "../CharacterCard";
 import { useContextMenu, type MenuItem } from "../ContextMenu";
 import { CharacterEditDialog, KIND_LABEL } from "./EditDialogs";
+import { RevealDialog } from "./RevealDialog";
+import { RevealView } from "./RevealView";
 import { ResizeHandle, useResizable } from "./Resizable";
 import { useSession } from "./SessionContext";
 
@@ -20,14 +22,19 @@ export function openSheet(charId: string) {
 
 // 아래 왼쪽 파티 띠 — 얼굴 + HP/MP. 누르면 캐릭터 시트, 우클릭하면 고치기·빼기
 export function PartyBar() {
-  const { cid, characters, user, isGM, scene } = useSession();
+  const { cid, characters, user, isGM, scene, reveals } = useSession();
   const [openId, setOpenId] = useState<string | null>(null);
   const [editId, setEditId] = useState<string | null>(null);
+  const [revealId, setRevealId] = useState<string | null>(null);
   const menu = useContextMenu();
   const pcs = characters.filter((c) => c.kind === "pc");
   const others = characters.filter((c) => c.kind !== "pc"); // 플레이어에게는 에너미가 아예 오지 않는다
   const open = characters.find((c) => c.id === openId);
+  // 플레이어: 시트는 못 읽지만 GM 이 공개한 정보가 있는 캐릭터
+  const openReveal = !open && openId ? reveals[openId] : undefined;
   const editing = characters.find((c) => c.id === editId);
+  const revealing = characters.find((c) => c.id === revealId);
+  const knownHidden = isGM ? [] : Object.values(reveals).filter((r) => r.listed);
 
   useEffect(() => {
     const on = (e: Event) => setOpenId((e as CustomEvent<string>).detail);
@@ -42,6 +49,8 @@ export function PartyBar() {
       { label: openId === c.id ? "시트 닫기" : "시트 열기", icon: "📜", onSelect: () => setOpenId(openId === c.id ? null : c.id) },
     ];
     if (canEdit) items.push({ label: "고치기", hint: "그림·색·이름", icon: "✎", onSelect: () => setEditId(c.id) });
+    if (isGM && c.kind !== "pc")
+      items.push({ label: "플레이어 공개 설정…", hint: c.hidden ? "골라서 공개" : "전부 공개", icon: c.hidden ? "🔒" : "👁", onSelect: () => setRevealId(c.id) });
     if (isGM) {
       const who = { charId: c.id, name: c.sheet.name, image: stageImageOf(c) };
       const on = !!findCast(scene, who);
@@ -52,7 +61,13 @@ export function PartyBar() {
         items.push({
           label: k === "enemy" ? "에너미로 (GM만 보기)" : `${KIND_LABEL[k]}로`,
           icon: "⇄",
-          onSelect: () => updateCharacter(cid, c.id, { kind: k, ...(k !== "pc" ? { ownerUid: null } : {}) }),
+          // 에너미로 돌리면 시트는 비공개로, PC 로 돌리면 공개로 (NPC 는 공개 설정 그대로)
+          onSelect: () =>
+            updateCharacter(cid, c.id, {
+              kind: k,
+              ...(k !== "pc" ? { ownerUid: null } : {}),
+              ...(k === "enemy" ? { hidden: true } : k === "pc" ? { hidden: false } : {}),
+            }),
         });
       }
       items.push("sep", {
@@ -76,7 +91,14 @@ export function PartyBar() {
       if (!list.length) continue;
       if (items.length) items.push("sep");
       items.push({ title: `${KIND_LABEL[kind]} ${list.length} — 눌러서 시트` });
-      for (const c of list) items.push({ label: c.sheet.name, icon: "📜", hint: `HP ${c.hp.cur}/${c.hp.max}`, onSelect: () => setOpenId(c.id) });
+      for (const c of list)
+        items.push({ label: c.sheet.name, icon: c.hidden ? "🔒" : "📜", hint: `HP ${c.hp.cur}/${c.hp.max}`, onSelect: () => setOpenId(c.id) });
+    }
+    // 플레이어: GM 이 목록에 올려 둔 비공개 캐릭터 (공개된 정보만)
+    if (knownHidden.length) {
+      if (items.length) items.push("sep");
+      items.push({ title: `알려진 인물·적 ${knownHidden.length}` });
+      for (const r of knownHidden) items.push({ label: r.name, icon: "❔", onSelect: () => setOpenId(r.charId) });
     }
     return items;
   }
@@ -94,7 +116,7 @@ export function PartyBar() {
             onMenu={(e) => menu.open(e, charMenu(c))}
           />
         ))}
-        {others.length > 0 && (
+        {(others.length > 0 || knownHidden.length > 0) && (
           <button
             className="panel pop flex h-[46px] shrink-0 flex-col items-center justify-center px-2.5 text-[11px] leading-tight"
             title="NPC·에너미 시트 열기"
@@ -104,13 +126,26 @@ export function PartyBar() {
             }}
           >
             <span className="font-bold whitespace-nowrap">{isGM && others.some((c) => c.kind === "enemy") ? "NPC·적" : "NPC"}</span>
-            <span className="text-muted">{others.length} ▴</span>
+            <span className="text-muted">{others.length + knownHidden.length} ▴</span>
           </button>
         )}
       </div>
       {menu.node}
       {open && <SheetDrawer character={open} onClose={() => setOpenId(null)} onMenu={(e) => menu.open(e, charMenu(open))} />}
       {editing && <CharacterEditDialog character={editing} onClose={() => setEditId(null)} />}
+      {revealing && <RevealDialog character={revealing} onClose={() => setRevealId(null)} />}
+      {openReveal && (
+        <div className="fixed bottom-28 left-3 z-40 w-[min(380px,calc(100vw-24px))] animate-rise-in">
+          <div className="mb-1 flex justify-end">
+            <button className="btn px-2 py-0.5 text-xs" onClick={() => setOpenId(null)}>
+              <span>닫기 ✕</span>
+            </button>
+          </div>
+          <div className="max-h-[calc(100dvh-14rem)] overflow-y-auto rounded-lg shadow-2xl">
+            <RevealView d={openReveal} />
+          </div>
+        </div>
+      )}
     </>
   );
 }

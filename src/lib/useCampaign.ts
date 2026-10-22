@@ -34,12 +34,12 @@ export function useCampaign(cid: string, uid: string | undefined): CampaignState
     return () => unsubs.forEach((u) => u());
   }, [cid, uid]);
 
-  // 캐릭터: GM 은 전부, 플레이어는 에너미를 뺀 것만 (보안 규칙도 같은 조건으로 막는다)
+  // 캐릭터: GM 은 전부, 플레이어는 공개(hidden == false)인 것만 (보안 규칙도 같은 조건으로 막는다)
   const gmUid = campaign?.gmUid;
   useEffect(() => {
     if (!uid || !gmUid) return;
     const col = collection(db, "campaigns", cid, "characters");
-    const q = gmUid === uid ? col : query(col, where("kind", "in", ["pc", "npc"]));
+    const q = gmUid === uid ? col : query(col, where("hidden", "==", false));
     return onSnapshot(
       q,
       (snap) =>

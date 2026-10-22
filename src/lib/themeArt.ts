@@ -12,8 +12,14 @@ export const ART_SLOTS: { slot: ArtSlot; cssVar: string; label: string }[] = [
   { slot: "page", cssVar: "--art-page", label: "저널·도감 페이지 배경" },
 ];
 
-// 그림이 들어오면 여기에 적는다. 예: classic: { stage: true, party: true }
-export const THEME_ART: Partial<Record<ThemeId, Partial<Record<ArtSlot, true>>>> = {};
+// public/themes 에 저장된 기본 배경. 등록하지 않은 자리는 색·무늬로 대체한다.
+export const THEME_ART: Partial<Record<ThemeId, Partial<Record<ArtSlot, true>>>> = {
+  classic: { stage: true, party: true, battle: true, page: true },
+  gothic: { stage: true, party: true, battle: true, page: true },
+  phantom: { stage: true, party: true, battle: true, page: true },
+  arcane: { stage: true, party: true, battle: true, page: true },
+  online: { stage: true, party: true, battle: true, page: true },
+};
 
 // ThemeRoot 가 CSS 변수로 깔아 준다 → 각 화면은 var(--art-…) 로 쓴다
 export function themeArtVars(id: ThemeId): Record<string, string> {
