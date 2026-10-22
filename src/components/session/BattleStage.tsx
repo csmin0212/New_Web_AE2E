@@ -1,7 +1,7 @@
 "use client";
 
 import { tokenImageOf } from "@/lib/characterArt";
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent } from "react";
 import { setTurn } from "@/lib/battle";
 import { derive } from "@/lib/ar/derive";
 import { BAD_STATUS, CONDITION_LABEL, effectiveInit, endTurn, giveTurn, initiativeOrder, startBattle, type StatusMap } from "@/lib/battleRules";
@@ -208,7 +208,7 @@ export function BattleStage() {
             {(
               [
                 ["move", "✋", "이동 — 토큰 끌어 옮기기"],
-                ["ruler", "📏", "자 — 끌어서 거리 재기 (모두에게 보임)"],
+                ["ruler", "📏", "자 — 누른 채 끌어서 거리 재기 · 끄는 중 우클릭으로 꺾기 (모두에게 보임)"],
                 ["ping", "📍", "핑 — 눌러서 모두에게 위치 알리기 (Alt+클릭도 됨)"],
                 ...(isGM ? ([["paint", "🖌", "지형 칠하기 — 벽·험지·피해 지형 (GM)"]] as const) : []),
               ] as const
@@ -285,7 +285,11 @@ function Grid({
   const wrapRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const movedRef = useRef(false); // 끌어서 옮긴 직후의 click 은 대상 지정으로 치지 않는다
-  const [cell, setCell] = useState(40);
+  const [fitCell, setFitCell] = useState(40); // 화면에 꼭 맞는 칸 크기
+  const [zoom, setZoom] = useState(1);
+  const cell = Math.max(8, Math.round(fitCell * zoom));
+  const anchor = useRef<{ fx: number; fy: number; cx: number; cy: number } | null>(null);
+  const pan = useRef<{ x: number; y: number; sl: number; st: number } | null>(null);
   const [drag, setDrag] = useState<{ id: string; from: { x: number; y: number }; to: { x: number; y: number } } | null>(null);
 
   // 화면에 맞게 칸 크기를 정한다
@@ -293,12 +297,39 @@ function Grid({
     const el = wrapRef.current;
     if (!el) return;
     const ro = new ResizeObserver(([e]) => {
-      const pad = 24;
-      setCell(Math.max(18, Math.floor(Math.min((e.contentRect.width - pad) / cols, (e.contentRect.height - pad) / rows))));
+      const pad = 48;
+      setFitCell(Math.max(18, Math.floor(Math.min((e.contentRect.width - pad) / cols, (e.contentRect.height - pad) / rows))));
     });
     ro.observe(el);
     return () => ro.disconnect();
   }, [cols, rows]);
+
+  // 휠: 마우스가 있는 칸을 붙잡고 확대·축소 (페이지가 대신 스크롤되지 않게 passive: false)
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const wheel = (e: WheelEvent) => {
+      const g = gridRef.current;
+      if (!g) return;
+      e.preventDefault();
+      const r = g.getBoundingClientRect();
+      anchor.current = { fx: (e.clientX - r.left) / r.width, fy: (e.clientY - r.top) / r.height, cx: e.clientX, cy: e.clientY };
+      setZoom((z) => Math.min(4, Math.max(0.4, +(z * (e.deltaY < 0 ? 1.15 : 1 / 1.15)).toFixed(3))));
+    };
+    el.addEventListener("wheel", wheel, { passive: false });
+    return () => el.removeEventListener("wheel", wheel);
+  }, []);
+  // 확대한 뒤, 붙잡은 칸이 다시 마우스 밑에 오도록 스크롤을 맞춘다
+  useLayoutEffect(() => {
+    const a = anchor.current;
+    const el = wrapRef.current;
+    const g = gridRef.current;
+    if (!a || !el || !g) return;
+    anchor.current = null;
+    const r = g.getBoundingClientRect();
+    el.scrollLeft += r.left + a.fx * r.width - a.cx;
+    el.scrollTop += r.top + a.fy * r.height - a.cy;
+  }, [cell]);
 
   function cellAt(clientX: number, clientY: number) {
     const r = gridRef.current!.getBoundingClientRect();
@@ -367,7 +398,7 @@ function Grid({
   // ── 자·핑 (다른 사람 것은 Realtime DB 로 받는다) ──
   const [pointers, setPointers] = useState<Record<string, Pointer>>({});
   useEffect(() => subscribePointers(cid, setPointers), [cid]);
-  const [ruler, setRuler] = useState<{ from: Cell; to: Cell } | null>(null);
+  const [ruler, setRuler] = useState<{ points: Cell[]; to: Cell } | null>(null);
   const sentAt = useRef(0);
   const clearTimer = useRef<number | null>(null);
   // 오래된 자·핑을 걸러 내는 시계 — 손짓이 있을 때만 돈다 (평소에 그리드를 다시 그리지 않게)
@@ -397,31 +428,51 @@ function Grid({
     clearLater(2600);
   }
 
+  // 왼쪽 버튼을 누른 동안만 자가 산다. 끄는 중 우클릭 = 그 자리에서 꺾기 (Roll20 처럼)
+  const rulerOn = !!ruler;
   useEffect(() => {
-    if (!ruler) return;
+    if (!rulerOn) return;
     const move = (e: PointerEvent) => {
       const to = cellAt(e.clientX, e.clientY);
       setRuler((r) => (r && (r.to.x !== to.x || r.to.y !== to.y) ? { ...r, to } : r));
     };
-    const up = () => clearLater(2500);
+    const bend = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation(); // 토큰 우클릭 메뉴가 같이 뜨지 않게
+      setRuler((r) => {
+        if (!r) return r;
+        const last = r.points[r.points.length - 1];
+        return last.x === r.to.x && last.y === r.to.y ? r : { ...r, points: [...r.points, r.to] };
+      });
+    };
+    const up = (e: PointerEvent) => {
+      if (e.button !== 0) return; // 오른쪽 버튼을 뗀 것은 꺾기라 무시
+      if (clearTimer.current) clearTimeout(clearTimer.current);
+      setRuler(null);
+      clearPointer(cid, user.uid).catch(() => {});
+    };
     window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", up, { once: true });
+    window.addEventListener("contextmenu", bend, true);
+    window.addEventListener("pointerup", up);
     return () => {
       window.removeEventListener("pointermove", move);
+      window.removeEventListener("contextmenu", bend, true);
       window.removeEventListener("pointerup", up);
     };
     // 자를 잡은 동안만 듣는다
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ruler?.from.x, ruler?.from.y, cell]);
+  }, [rulerOn, cell]);
   useEffect(() => {
-    if (ruler) share({ kind: "ruler", from: ruler.from, to: ruler.to });
+    if (ruler) share({ kind: "ruler", from: ruler.points[0], path: ruler.points, to: ruler.to });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ruler?.to.x, ruler?.to.y]);
+  }, [ruler?.to.x, ruler?.to.y, ruler?.points.length]);
 
   const others = Object.entries(pointers).filter(([uid, p]) => uid !== user.uid && now - (p.at || 0) < 15000);
-  const rulers: { key: string; from: Cell; to: Cell; name: string; mine: boolean }[] = [
-    ...(ruler ? [{ key: "me", ...ruler, name: myName, mine: true }] : []),
-    ...others.filter(([, p]) => p.kind === "ruler" && p.from).map(([uid, p]) => ({ key: uid, from: p.from!, to: p.to, name: p.name, mine: false })),
+  const rulers: { key: string; points: Cell[]; name: string; mine: boolean }[] = [
+    ...(ruler ? [{ key: "me", points: [...ruler.points, ruler.to], name: myName, mine: true }] : []),
+    ...others
+      .filter(([, p]) => p.kind === "ruler" && (p.path || p.from))
+      .map(([uid, p]) => ({ key: uid, points: [...(p.path ?? [p.from!]), p.to], name: p.name, mine: false })),
   ];
   const mine = pointers[user.uid];
   const pings = [
@@ -430,7 +481,32 @@ function Grid({
   ];
 
   return (
-    <div ref={wrapRef} className="absolute inset-0 grid place-items-center">
+    <div
+      ref={wrapRef}
+      className="battle-scroll absolute inset-0 overflow-auto"
+      onPointerDown={(e) => {
+        // 이동 도구로 빈 곳을 끌거나, 가운데 버튼으로 끌면 화면을 옮긴다
+        const onToken = (e.target as HTMLElement).closest("[data-token]");
+        if (!(e.button === 1 || (e.button === 0 && tool === "move" && !onToken))) return;
+        const el = wrapRef.current!;
+        pan.current = { x: e.clientX, y: e.clientY, sl: el.scrollLeft, st: el.scrollTop };
+        const move = (ev: PointerEvent) => {
+          const p = pan.current;
+          if (!p) return;
+          el.scrollLeft = p.sl - (ev.clientX - p.x);
+          el.scrollTop = p.st - (ev.clientY - p.y);
+        };
+        const up = () => {
+          pan.current = null;
+          window.removeEventListener("pointermove", move);
+          window.removeEventListener("pointerup", up);
+        };
+        window.addEventListener("pointermove", move);
+        window.addEventListener("pointerup", up);
+        if (e.button === 1) e.preventDefault();
+      }}
+    >
+      <div className="grid min-h-full min-w-full place-items-center p-6" style={{ width: "max-content", height: "max-content" }}>
       <div
         ref={gridRef}
         className={`relative overflow-hidden rounded-sm shadow-[0_20px_60px_rgba(0,0,0,.55)] ${tool !== "move" ? "cursor-crosshair" : ""}`}
@@ -449,7 +525,7 @@ function Grid({
           } else if (tool === "ruler") {
             e.preventDefault();
             if (clearTimer.current) clearTimeout(clearTimer.current);
-            setRuler({ from: at, to: at });
+            setRuler({ points: [at], to: at });
           }
         }}
         onPointerMove={(e) => {
@@ -515,16 +591,29 @@ function Grid({
           <svg className="pointer-events-none absolute inset-0 z-30" width={cols * cell} height={rows * cell}>
             {rulers.map((r) => {
               const c = (v: number) => v * cell + cell / 2;
-              const d = cellDistance(r.from, r.to);
+              const segs = r.points.slice(1).map((p, i) => cellDistance(r.points[i], p));
+              const d = segs.reduce((a, b) => a + b, 0);
+              const end = r.points[r.points.length - 1];
               const color = r.mine ? "#ffe14d" : "#7fe3e6";
               return (
                 <g key={r.key}>
-                  <line x1={c(r.from.x)} y1={c(r.from.y)} x2={c(r.to.x)} y2={c(r.to.y)} stroke={color} strokeWidth={3} strokeDasharray="8 5" />
-                  <circle cx={c(r.from.x)} cy={c(r.from.y)} r={5} fill={color} />
-                  <circle cx={c(r.to.x)} cy={c(r.to.y)} r={7} fill="none" stroke={color} strokeWidth={3} />
-                  <foreignObject x={c(r.to.x) + 10} y={c(r.to.y) - 28} width={170} height={40}>
+                  <polyline
+                    points={r.points.map((p) => `${c(p.x)},${c(p.y)}`).join(" ")}
+                    fill="none"
+                    stroke={color}
+                    strokeWidth={3}
+                    strokeDasharray="8 5"
+                    strokeLinejoin="round"
+                  />
+                  {r.points.slice(0, -1).map((p, i) => (
+                    <circle key={i} cx={c(p.x)} cy={c(p.y)} r={i === 0 ? 5 : 4} fill={color} />
+                  ))}
+                  <circle cx={c(end.x)} cy={c(end.y)} r={7} fill="none" stroke={color} strokeWidth={3} />
+                  <foreignObject x={c(end.x) + 10} y={c(end.y) - 28} width={220} height={40}>
                     <div className="inline-block rounded bg-black/85 px-1.5 py-0.5 text-[11px] leading-tight font-bold whitespace-nowrap text-white">
-                      {d}칸 · {d * METERS_PER_CELL}m{!r.mine && <span className="font-normal opacity-70"> ({r.name})</span>}
+                      {d}칸 · {d * METERS_PER_CELL}m
+                      {segs.length > 1 && <span className="font-normal opacity-70"> ({segs.join("+")})</span>}
+                      {!r.mine && <span className="font-normal opacity-70"> {r.name}</span>}
                     </div>
                   </foreignObject>
                 </g>
@@ -591,6 +680,7 @@ function Grid({
               className={`absolute flex flex-col items-center transition-[left,top] duration-200 ${
                 movable ? "cursor-grab active:cursor-grabbing" : picking ? "cursor-crosshair" : ""
               } ${drag?.id === u.id ? "z-20 opacity-90" : "z-10"} ${u.cond === "down" ? "grayscale" : ""}`}
+              data-token
               style={{ left: at.x * cell, top: at.y * cell, width: box, height: box, touchAction: "none" }}
               onPointerDown={(e) => {
                 movedRef.current = false;
@@ -629,6 +719,19 @@ function Grid({
             </div>
           );
         })}
+      </div>
+      </div>
+      {/* 확대·축소 단추 (휠로도 된다) */}
+      <div className="sticky bottom-2 left-full z-30 mr-2 flex w-max items-center gap-1 rounded-md border border-line bg-panel/90 px-1 py-0.5 text-xs shadow-lg" style={{ marginLeft: "auto" }}>
+        <button className="px-1.5 hover:text-accent" onClick={() => setZoom((z) => Math.max(0.4, +(z / 1.2).toFixed(3)))} aria-label="축소">
+          −
+        </button>
+        <button className="min-w-11 tabular-nums hover:text-accent" onClick={() => setZoom(1)} title="화면에 맞추기">
+          {Math.round(zoom * 100)}%
+        </button>
+        <button className="px-1.5 hover:text-accent" onClick={() => setZoom((z) => Math.min(4, +(z * 1.2).toFixed(3)))} aria-label="확대">
+          +
+        </button>
       </div>
     </div>
   );

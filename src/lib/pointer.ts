@@ -7,7 +7,8 @@ import { rtdb } from "./firebase";
 //   fx/{cid}/pointer/{uid} = { kind, name, color, from?, to, at }   (자기 것만 쓴다)
 
 export type Cell = { x: number; y: number };
-export type Pointer = { kind: "ruler" | "ping"; name: string; color?: string; from?: Cell; to: Cell; at: number };
+// 자: path = 시작점과 꺾인 점들, to = 지금 끝
+export type Pointer = { kind: "ruler" | "ping"; name: string; color?: string; from?: Cell; path?: Cell[]; to: Cell; at: number };
 
 export function setPointer(cid: string, uid: string, p: Omit<Pointer, "at">) {
   return set(ref(rtdb, `fx/${cid}/pointer/${uid}`), { ...JSON.parse(JSON.stringify(p)), at: serverTimestamp() });

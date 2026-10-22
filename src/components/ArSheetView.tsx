@@ -4,6 +4,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { rollArCheck, saveAr, applyItem, applySkill, type ActCtx } from "@/lib/ar/actions";
 import { derive, formatDiceMod } from "@/lib/ar/derive";
 import { newId, type ArSheet, type ArSkill, type DiceMod } from "@/lib/ar/types";
+import { StyledTextarea } from "./StyledTextarea";
 import { setGauge } from "@/lib/campaigns";
 import type { Segment } from "@/lib/inline";
 import type { Character } from "@/lib/types";
@@ -603,14 +604,20 @@ function Num({ label, v, on }: { label: string; v: number; on: (v: number) => vo
 }
 
 function Text({ label, v, on, area }: { label: string; v: string; on: (v: string) => void; area?: boolean }) {
+  // 긴 글(스킬 효과·아이템 설명)은 꾸밀 수 있는 칸으로
+  if (area)
+    return (
+      <div className="block text-muted">
+        {label}
+        <div className="mt-0.5">
+          <StyledTextarea className="min-h-20 px-1 py-0.5 text-[11px] text-text" value={v} onChange={on} />
+        </div>
+      </div>
+    );
   return (
     <label className="block text-muted">
       {label}
-      {area ? (
-        <textarea className="input mt-0.5 min-h-20 px-1 py-0.5 text-[11px] text-text" value={v} onChange={(e) => on(e.target.value)} />
-      ) : (
-        <input className="input mt-0.5 px-1 py-0.5 text-[11px] text-text" value={v} onChange={(e) => on(e.target.value)} />
-      )}
+      <input className="input mt-0.5 px-1 py-0.5 text-[11px] text-text" value={v} onChange={(e) => on(e.target.value)} />
     </label>
   );
 }

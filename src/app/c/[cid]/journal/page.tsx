@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { CampaignShell } from "@/components/campaign/CampaignShell";
 import { ImageDrop } from "@/components/ImageDrop";
 import { JournalView } from "@/components/JournalView";
+import { StyledTextarea } from "@/components/StyledTextarea";
 import { useSession } from "@/components/session/SessionContext";
 import {
   JOURNAL_TYPES,
@@ -257,7 +258,9 @@ function Entry({ entry, onBack, onDeleted }: { entry: JournalEntry; onBack: () =
 
           <label className="block">
             <span className="text-xs text-muted"># 큰 제목 · ## 작은 제목 · - 목록 · &gt; 인용 · **굵게** · --- 구분선</span>
-            <textarea className="input mt-1 min-h-[45vh] resize-y leading-relaxed" value={cur.body} onChange={(e) => change({ body: e.target.value })} />
+            <div className="mt-1">
+              <StyledTextarea className="min-h-[45vh] resize-y leading-relaxed" value={cur.body} onChange={(v) => change({ body: v })} />
+            </div>
           </label>
         </div>
       ) : (

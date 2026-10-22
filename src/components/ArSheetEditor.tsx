@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
+import { StyledTextarea } from "./StyledTextarea";
 import { derive, formatDiceMod } from "@/lib/ar/derive";
 import { AR_STATS, newId, type ArSheet, type ArSkill, type ArStatKey } from "@/lib/ar/types";
 import { RichText, SkillName } from "./ChatMessageView";
@@ -404,8 +405,7 @@ function SkillsEditor({ skills, onChange }: { skills: ArSkill[]; onChange: (s: A
                     <Field label="최대 SL"><input className="input py-1" value={s.slMax} onChange={(e) => up(s.id, { slMax: e.target.value })} /></Field>
                     <Field label="딸린 굴림 (예: 4d6+17)" wide><input className="input py-1" value={s.roll ?? ""} onChange={(e) => up(s.id, { roll: e.target.value || undefined })} /></Field>
                     <Field label="효과" wide>
-                      <DecorateBar onInsert={(snippet) => up(s.id, { effect: (s.effect ? s.effect + "\n" : "") + snippet })} />
-                      <textarea className="input min-h-36 text-xs leading-relaxed" value={s.effect} onChange={(e) => up(s.id, { effect: e.target.value })} />
+                      <StyledTextarea className="min-h-36 text-xs leading-relaxed" value={s.effect} onChange={(v) => up(s.id, { effect: v })} />
                     </Field>
                     <div className="col-span-2">
                       <button className="btn text-xs text-hp" onClick={() => onChange(skills.filter((x) => x.id !== s.id))}>
@@ -496,27 +496,4 @@ function Del({ onClick }: { onClick: () => void }) {
 
 function Empty({ children }: { children: ReactNode }) {
   return <p className="py-2 text-xs text-muted">{children}</p>;
-}
-
-// 스킬 효과 꾸미기 — Roll20 롤 템플릿과 같은 문법을 끼워 넣는다 (채팅 카드에서 그대로 보인다)
-function DecorateBar({ onInsert }: { onInsert: (snippet: string) => void }) {
-  const [color, setColor] = useState("#c0392b");
-  const items: [string, string, string][] = [
-    ["가운데 제목", `[제목](#" style="display:block; text-align:center; font-weight:bold; font-size:14px; color:${color}")`, "가운데 정렬된 굵은 제목 줄"],
-    ["색 글씨", `[글자](#" style="color:${color}; font-weight:bold")`, "고른 색의 굵은 글자"],
-    ["빛나는 글씨", `[글자](#" style="color:${color}; text-shadow:0 0 6px ${color}")`, "글자 둘레가 빛나요"],
-    ["띠 배경", `[글자](#" style="display:block; background:${color}; color:#fff; padding:2px 8px; border-radius:4px")`, "색 띠 위에 흰 글자"],
-    ["굵게", "**굵게**", "**굵게**"],
-    ["기울임", "*사용 조건: 장면 1회*", "*기울임*"],
-  ];
-  return (
-    <div className="mb-1 flex flex-wrap items-center gap-1">
-      <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-6 w-7 cursor-pointer bg-transparent" aria-label="꾸밈 색" />
-      {items.map(([label, snippet, hint]) => (
-        <button key={label} type="button" className="btn px-1.5 py-0 text-[10px]" title={hint} onClick={() => onInsert(snippet)}>
-          <span>{label}</span>
-        </button>
-      ))}
-    </div>
-  );
 }

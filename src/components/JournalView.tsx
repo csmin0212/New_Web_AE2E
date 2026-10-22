@@ -1,6 +1,7 @@
 "use client";
 
-import { JOURNAL_TYPES, parseBody, splitBold, type JournalEntry } from "@/lib/journal";
+import { JOURNAL_TYPES, parseBody, type JournalEntry } from "@/lib/journal";
+import { StyledText } from "./StyledText";
 
 // 핸드아웃·저널 읽기 화면 (저널 페이지와 보여주기 팝업이 같이 쓴다)
 export function JournalView({ entry }: { entry: JournalEntry }) {
@@ -69,17 +70,5 @@ export function JournalBody({ body }: { body: string }) {
 }
 
 function Inline({ text }: { text: string }) {
-  return (
-    <>
-      {splitBold(text).map((p, i) =>
-        p.bold ? (
-          <b key={i} className="text-accent">
-            {p.text}
-          </b>
-        ) : (
-          <span key={i}>{p.text}</span>
-        ),
-      )}
-    </>
-  );
+  return <StyledText text={text} />;
 }

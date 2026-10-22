@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ImageDrop } from "@/components/ImageDrop";
+import { StyledTextarea } from "@/components/StyledTextarea";
 import { Modal } from "@/components/session/EditDialogs";
 import { useSession } from "@/components/session/SessionContext";
 import { createJournal, deleteJournal, patchJournal, type JournalEntry } from "@/lib/journal";
@@ -104,7 +105,9 @@ export function ProfileEditor({
 
       <label className="mt-3 block text-sm">
         <span className="text-xs text-muted"># 제목 · - 목록 · **굵게** · &gt; 인용</span>
-        <textarea className="input mt-1 min-h-40 resize-y leading-relaxed" value={d.body} onChange={(e) => up({ body: e.target.value })} />
+        <div className="mt-1">
+          <StyledTextarea className="min-h-40 resize-y leading-relaxed" value={d.body} onChange={(v) => up({ body: v })} />
+        </div>
       </label>
 
       <div className="mt-3 rounded-md border border-line p-2 text-xs">

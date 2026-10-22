@@ -4,8 +4,8 @@ import { memo, useEffect, useRef, useState, type CSSProperties } from "react";
 import type { RollResult } from "@/lib/dice";
 import type { InlineResult, Segment } from "@/lib/inline";
 import { splitTitle } from "@/lib/stage";
-import { parseStyledText } from "@/lib/styledText";
 import type { ChatCard, ChatMessage } from "@/lib/types";
+import { StyledText } from "./StyledText";
 
 // 채팅이 하나 올 때마다 300개를 다시 그리지 않게, 내용이 같은 메시지는 건너뛴다
 export const ChatMessageView = memo(function ChatMessageView({
@@ -194,36 +194,6 @@ export function RichText({ segments, className = "" }: { segments: Segment[]; cl
   );
 }
 
-// 스킬 설명 글씨 — Roll20 꾸밈([글자](#" style="…")), **굵게**, *기울임*
-function StyledText({ text }: { text: string }) {
-  return (
-    <>
-      {parseStyledText(text).map((p, i) => {
-        if (p.kind === "bold")
-          return (
-            <strong key={i} className="text-text">
-              {p.text}
-            </strong>
-          );
-        if (p.kind === "italic")
-          return (
-            <em key={i} className="text-muted">
-              {p.text}
-            </em>
-          );
-        if (p.kind === "styled") {
-          const Tag = p.block ? "div" : "span";
-          return (
-            <Tag key={i} style={p.style as CSSProperties}>
-              {p.text}
-            </Tag>
-          );
-        }
-        return <span key={i}>{p.text}</span>;
-      })}
-    </>
-  );
-}
 
 // 카드 속 굴림 결과 — 누르면 실제로 굴러간 주사위가 펼쳐지고, 다른 곳을 누르면 닫힌다
 function RollChip({ r }: { r: InlineResult }) {
