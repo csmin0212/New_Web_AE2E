@@ -4,7 +4,7 @@
 //   ③ 대미지 굴림 직후: 경감(대상별·전원), 커버링(다른 캐릭터가 대신 받음), 추가 증가
 //   ④ 확정: 대상마다 합계 − 경감 → 커버링이면 받는 사람이 바뀐다 → 방어력은 적용 단계에서 뺀다
 
-import type { DamageType } from "./battleRules";
+import type { DamageType, StatusPick } from "./battleRules";
 
 export type DamagePhase = "before" | "after";
 export type DmgTarget = { tid?: string; charId: string; name: string };
@@ -31,6 +31,7 @@ export type DamageWindow = {
   minus?: Record<string, DmgReduce>;
   covers?: Record<string, DmgCover>;
   rolled?: { base: number; total: number }; // 대미지 굴림 결과 (직전 증가 포함)
+  statuses?: StatusPick[]; // 확정할 때 대미지와 함께 거는 BS (커버링이면 대신 받은 사람에게)
   at: number;
 };
 

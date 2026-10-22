@@ -4,9 +4,11 @@ import { useMemo, useState } from "react";
 import { applySkill, type ActCtx } from "@/lib/ar/actions";
 import { DAMAGE_LABEL } from "@/lib/battleRules";
 import { damageTotal, resolveDamage, type DamageWindow } from "@/lib/damageRules";
-import { addCover, addMinus, addPlus, cancelDamage, finalizeDamage, removeDecl, rollDamage, rollExpr } from "@/lib/damageWindow";
+import { addCover, addMinus, addPlus, cancelDamage, finalizeDamage, removeDecl, rollDamage, rollExpr, setDamageStatuses } from "@/lib/damageWindow";
 import { splitTitle } from "@/lib/stage";
+import { BsPickDialog } from "./BsPickDialog";
 import { useSession } from "./SessionContext";
+import { SkillBrief } from "./SkillBrief";
 
 type Kind = "plus" | "minus" | "cover";
 
@@ -14,7 +16,8 @@ type Kind = "plus" | "minus" | "cover";
 //   직전: 대미지 증가 선언 → 공격자(또는 GM)가 굴림
 //   직후: 경감·커버링·추가 증가 선언 → 공격자(또는 GM)가 확정
 export function DamagePanel({ w }: { w: DamageWindow }) {
-  const { cid, user, isGM, campaign, characters } = useSession();
+  const { cid, user, isGM, campaign, characters, battle } = useSession();
+  const [bsOpen, setBsOpen] = useState(false);
   const ctx: ActCtx = { cid, uid: user.uid, isGM, gmUid: campaign.gmUid };
   const isOwner = isGM || w.attacker.uid === user.uid;
   const before = w.phase === "before";
@@ -133,6 +136,32 @@ export function DamagePanel({ w }: { w: DamageWindow }) {
           {!w.plus && !w.minus && !w.covers && <li className="text-muted">{before ? "대미지를 늘리는 스킬이 있으면 선언하세요." : "경감·커버링할 스킬이 있으면 선언하세요."}</li>}
         </ul>
 
+        {/* 대미지와 함께 걸 BS */}
+        {(w.statuses?.length || isOwner) && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="rounded bg-hp/25 px-1 text-[10px]">☠ 함께 걸 BS</span>
+            {w.statuses?.length ? (
+              <span>{w.statuses.map((p) => (p.stack ? `${p.label} ${p.strength}` : p.label)).join(" · ")}</span>
+            ) : (
+              <span className="text-muted">없음</span>
+            )}
+            {isOwner && (
+              <button className="btn ml-auto px-2 py-0 text-[11px]" onClick={() => setBsOpen(true)}>
+                <span>{w.statuses?.length ? "고치기" : "+ BS"}</span>
+              </button>
+            )}
+          </div>
+        )}
+        {bsOpen && (
+          <BsPickDialog
+            title="대미지와 함께 걸 BS"
+            note="확정할 때 대미지를 받는 대상(커버링이면 대신 받은 캐릭터)에게 같이 걸려요."
+            initial={w.statuses}
+            actions={[{ label: "정하기", primary: true, onPick: (list) => setDamageStatuses(cid, list) }]}
+            onClose={() => setBsOpen(false)}
+          />
+        )}
+
         {preview && (
           <div className="flex flex-wrap gap-1.5 border-t border-line pt-1.5">
             {preview.map((r) => (
@@ -208,6 +237,7 @@ export function DamagePanel({ w }: { w: DamageWindow }) {
                 <button className="text-muted hover:text-text" onClick={() => setOpen(false)} aria-label="닫기">
                   ✕
                 </button>
+                {skill && <SkillBrief skill={skill} />}
                 {skill && <p className="w-full text-[10px] text-muted">선언하면 《{skill.name}》 카드가 채팅에 올라가고 코스트가 빠져요.</p>}
               </div>
             )}
@@ -229,7 +259,7 @@ export function DamagePanel({ w }: { w: DamageWindow }) {
               <button
                 className="btn-primary px-3 py-1 text-xs"
                 disabled={busy}
-                onClick={() => run(() => finalizeDamage({ cid, uid: user.uid, gmUid: campaign.gmUid, isGM, characters }, w))}
+                onClick={() => run(() => finalizeDamage({ cid, uid: user.uid, gmUid: campaign.gmUid, isGM, characters, tokens: battle.tokens }, w))}
               >
                 <span>✔ 확정 · 적용</span>
               </button>

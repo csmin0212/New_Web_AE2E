@@ -4,13 +4,14 @@ import { useMemo, useState } from "react";
 import { applyItem, applySkill, rollArCheck, rolledTotals, type ActCtx } from "@/lib/ar/actions";
 import { derive, formatDiceMod } from "@/lib/ar/derive";
 import type { DiceMod } from "@/lib/ar/types";
-import { sendEffect, sendStatus } from "@/lib/battle";
+import { removeStatus, sendEffect, sendStatus } from "@/lib/battle";
 import { openDamage } from "@/lib/damageWindow";
-import { DAMAGE_LABEL, EFFECT_LABEL, statusDefs, type DamageType, type EffectKind } from "@/lib/battleRules";
+import { CLEAR_LABEL, DAMAGE_LABEL, EFFECT_LABEL, statusDefs, type DamageType, type EffectKind, type StatusPick } from "@/lib/battleRules";
 import { splitTitle } from "@/lib/stage";
 import type { Character, Gauge } from "@/lib/types";
-import { useContextMenu, type MenuItem } from "../ContextMenu";
+import { BsPickDialog } from "./BsPickDialog";
 import { useSession } from "./SessionContext";
+import { SkillBrief } from "./SkillBrief";
 
 // 내 차례 행동 바 — 전투 그리드 아래쪽에 떠 있다.
 //   ① 공격·스킬·아이템 중 하나를 고르고  ② 그리드에서 토큰을 눌러 대상을 정하고
@@ -67,7 +68,8 @@ export function ActionDock({
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null);
   const [folded, setFolded] = useState(false);
-  const bsMenu = useContextMenu();
+  const [bsOpen, setBsOpen] = useState(false);
+  const [withBs, setWithBs] = useState<StatusPick[]>([]); // 다음 대미지와 함께 걸 BS
 
   const attack = attacks.find((a) => a.id === pick.attack) ?? attacks[0];
   const skill = skills.find((s) => s.id === pick.skill) ?? skills[0];
@@ -93,22 +95,29 @@ export function ActionDock({
     if (values.length) setAmount(String(values[values.length - 1].total));
   }
 
-  // 대상에게 BS 걸기 (강도가 있는 것은 묻는다)
-  async function giveBs(id: string, label: string, strength: boolean) {
-    const n = strength ? parseInt(prompt(`${label} 강도`, "1") ?? "", 10) : 1;
-    if (!Number.isFinite(n) || n < 1) return;
+  const bsText = (list: StatusPick[]) => list.map((p) => (p.stack ? `${p.label} ${p.strength}` : p.label)).join(" · ");
+
+  // 대상에게 BS 걸기 (여러 개 한 번에)
+  async function giveBs(list: StatusPick[]) {
+    if (!list.length) return;
     await run(async () => {
-      const list = targets.map((t) => ({ tid: t.id, charId: t.charId ?? "", name: t.name }));
-      const r = await sendStatus({ cid, uid: user.uid, isGM, tokens: battle.tokens }, list, { id, label, strength: n }, c?.sheet.name ?? unit.name, source);
-      setMsg({ text: r.queued ? `${label}을(를) 걸었어요. (${r.queued}명은 GM 화면에서 처리)` : `${label}을(를) 걸었어요.` });
+      const to = targets.map((t) => ({ tid: t.id, charId: t.charId ?? "", name: t.name }));
+      const r = await sendStatus({ cid, uid: user.uid, isGM, tokens: battle.tokens }, to, list, c?.sheet.name ?? unit.name, source);
+      setMsg({ text: `${bsText(list)} 걸었어요.${r.queued ? ` (${r.queued}명은 GM 화면에서 처리)` : ""}` });
     });
   }
+
+  // 내 유닛에 걸린 BS (직접 푸는 것은 버튼으로)
+  const sDefs = statusDefs(battle.statusDefs);
+  const myStatus = battle.tokens[unit.id]?.status ?? {};
+  const myBs = sDefs.filter((b) => myStatus[b.id]);
 
   // 대미지 처리 창 열기 (직전 → 굴림 → 직후 → 확정)
   async function startTiming(base: { expr?: string; fixed?: number }, src: string, type: DamageType) {
     const list = targets.filter((t) => t.charId).map((t) => ({ tid: t.id, charId: t.charId!, name: t.name }));
     if (!list.length) throw new Error("먼저 그리드에서 대상을 골라 주세요.");
-    await openDamage(cid, { attacker: { name: c?.sheet.name ?? unit.name, charId: c?.id, uid: user.uid }, source: src, dmgType: type, base, targets: list });
+    await openDamage(cid, { attacker: { name: c?.sheet.name ?? unit.name, charId: c?.id, uid: user.uid }, source: src, dmgType: type, base, targets: list, statuses: withBs.length ? withBs : undefined });
+    setWithBs([]);
   }
 
   async function apply() {
@@ -122,7 +131,12 @@ export function ActionDock({
         list,
         { kind, amount: n, dmgType: kind === "damage" ? dmgType : undefined, from: c?.sheet.name ?? unit.name, source },
       );
-      setMsg({ text: r.queued ? `적용했어요. (${r.queued}명은 GM 화면에서 처리)` : "적용했어요." });
+      const bs = kind === "damage" ? withBs : [];
+      if (bs.length) {
+        await sendStatus({ cid, uid: user.uid, isGM, tokens: battle.tokens }, list, bs, c?.sheet.name ?? unit.name, source);
+        setWithBs([]);
+      }
+      setMsg({ text: `적용했어요.${bs.length ? ` (+ ${bsText(bs)})` : ""}${r.queued ? ` (${r.queued}명은 GM 화면에서 처리)` : ""}` });
     });
   }
 
@@ -139,7 +153,6 @@ export function ActionDock({
 
   return (
     <div className="pointer-events-auto absolute bottom-3 left-1/2 z-30 w-[min(600px,calc(100%-24px))] -translate-x-1/2 animate-rise-in">
-      {bsMenu.node}
       <div className="panel space-y-2 p-2.5 text-xs shadow-[0_12px_40px_rgba(0,0,0,.6)]" style={{ background: "color-mix(in srgb, var(--panel) 94%, transparent)" }}>
         {/* 머리: 누가 · 자원 · 접기 · 턴 종료 */}
         <div className="flex items-center gap-2">
@@ -157,6 +170,29 @@ export function ActionDock({
             </button>
           </div>
         </div>
+
+        {/* 내게 걸린 BS — 저절로 안 풀리는 것은 눌러서 푼다 (마이너·무브 액션 등) */}
+        {myBs.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1">
+            <span className="text-muted">내 상태</span>
+            {myBs.map((b) => {
+              const how = /마이너 액션/.test(b.hint) ? "마이너 액션" : /무브 액션/.test(b.hint) ? "무브 액션" : undefined;
+              return (
+                <button
+                  key={b.id}
+                  className="rounded-full border px-2 py-0.5 hover:line-through"
+                  style={{ borderColor: b.color, background: `color-mix(in srgb, ${b.color} 18%, transparent)` }}
+                  title={`${b.hint}\n${b.clear ? `${CLEAR_LABEL[b.clear]} 저절로 풀려요.` : ""} 눌러서 지금 풀기${how ? ` (${how})` : ""}`}
+                  onClick={() => run(() => removeStatus({ cid, uid: user.uid }, unit.id, c?.sheet.name ?? unit.name, myStatus, b.id, b.label, how))}
+                >
+                  {b.label}
+                  {b.strength ? ` ${myStatus[b.id]}` : ""}
+                  {how ? <span className="text-[10px] text-muted"> · {how}로 풀기</span> : null}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {/* ① 무엇을 */}
         {ar ? (
@@ -238,6 +274,7 @@ export function ActionDock({
                     <span>사용</span>
                   </button>
                   {skill.timing && <span className="text-[11px] text-muted">【{skill.timing}】</span>}
+                  <SkillBrief skill={skill} />
                 </>
               ) : (
                 <span className="text-muted">스킬이 없어요.</span>
@@ -299,30 +336,17 @@ export function ActionDock({
               ))}
             </select>
           )}
-          <button
-            className="btn py-1"
-            disabled={busy || targets.length === 0}
-            title="대상에게 상태 이상(BS)·버프를 건다"
-            onClick={(e) => {
-              const r = e.currentTarget.getBoundingClientRect();
-              bsMenu.open(
-                { clientX: r.left, clientY: r.top - 4 },
-                [
-                  { title: `대상 ${targets.length}명에게 BS 부여` },
-                  ...statusDefs(battle.statusDefs).map(
-                    (b): MenuItem => ({
-                      label: b.label,
-                      hint: b.hint.split(" · ")[0],
-                      icon: <span style={{ color: b.color }}>●</span>,
-                      onSelect: () => giveBs(b.id, b.label, !!b.strength),
-                    }),
-                  ),
-                ],
-              );
-            }}
-          >
+          <button className="btn py-1" disabled={busy} title="BS·버프 고르기 — 지금 걸거나, 다음 대미지와 함께 걸기" onClick={() => setBsOpen(true)}>
             <span>☠ BS</span>
           </button>
+          {withBs.length > 0 && (
+            <span className="flex items-center gap-1 rounded-full border border-hp/60 bg-hp/15 px-2 py-0.5" title="대미지를 적용할 때 같이 걸려요">
+              + {bsText(withBs)}
+              <button className="text-muted hover:text-hp" onClick={() => setWithBs([])} aria-label="함께 걸 BS 지우기">
+                ×
+              </button>
+            </span>
+          )}
           {kind === "damage" && (
             <button
               className="btn ml-auto py-1"
@@ -339,6 +363,18 @@ export function ActionDock({
         </div>
         {msg && <p className={msg.bad ? "text-hp" : "text-muted"}>{msg.text}</p>}
       </div>
+      {bsOpen && (
+        <BsPickDialog
+          title={targets.length ? `BS 걸기 — ${targets.map((t) => splitTitle(t.name).name).join(", ")}` : "BS 걸기"}
+          note={targets.length ? "‘대미지와 함께’로 정해 두면 대미지를 적용할 때(타이밍 처리 포함) 같이 걸려요." : "대상을 아직 고르지 않았어요. ‘대미지와 함께’로 정해 두고 나중에 대상을 골라도 돼요."}
+          initial={withBs}
+          actions={[
+            { label: "대미지와 함께", onPick: (list) => setWithBs(list) },
+            ...(targets.length ? [{ label: "지금 걸기", primary: true, onPick: (list: StatusPick[]) => giveBs(list) }] : []),
+          ]}
+          onClose={() => setBsOpen(false)}
+        />
+      )}
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import { ref, remove, set } from "firebase/database";
 import { useState } from "react";
-import type { BsDef } from "@/lib/battleRules";
+import { CLEAR_LABEL, type BsClear, type BsDef } from "@/lib/battleRules";
 import { rtdb } from "@/lib/firebase";
 import { Modal } from "./EditDialogs";
 import { useSession } from "./SessionContext";
@@ -41,9 +41,12 @@ export function StatusDefDialog({ onClose }: { onClose: () => void }) {
           <label className="flex items-center gap-1">
             풀리는 때
             <select className="input w-auto py-0 text-xs" value={d.clear ?? ""} onChange={(e) => setD({ ...d, clear: (e.target.value || undefined) as BsDef["clear"] })}>
-              <option value="">직접 풀기</option>
-              <option value="cleanup">클린업에 저절로</option>
-              <option value="own-turn">자기 차례가 오면</option>
+              <option value="">직접 풀기 (액션·회복 스킬)</option>
+              {(Object.keys(CLEAR_LABEL) as BsClear[]).map((k) => (
+                <option key={k} value={k}>
+                  {CLEAR_LABEL[k]}
+                </option>
+              ))}
             </select>
           </label>
         </div>

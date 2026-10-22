@@ -1,7 +1,8 @@
 "use client";
 
 import { push, ref, remove, set, update } from "firebase/database";
-import { sendEffect } from "./battle";
+import { sendEffect, sendStatus } from "./battle";
+import type { StatusPick } from "./battleRules";
 import { sendMessage } from "./chat";
 import { readDiceColor } from "./diceColor";
 import { rtdb } from "./firebase";
@@ -35,6 +36,9 @@ export function addMinus(cid: string, m: DmgReduce) {
 }
 export function addCover(cid: string, c: DmgCover) {
   return push(ref(rtdb, `battle/${cid}/damage/covers`), clean(c));
+}
+export function setDamageStatuses(cid: string, list: StatusPick[]) {
+  return set(ref(rtdb, `battle/${cid}/damage/statuses`), list.length ? clean(list) : null);
 }
 export function removeDecl(cid: string, kind: "plus" | "minus" | "covers", key: string) {
   return remove(ref(rtdb, `battle/${cid}/damage/${kind}/${key}`));
@@ -76,7 +80,7 @@ export async function rollDamage(ctx: { cid: string; uid: string }, w: DamageWin
 
 // ④ 확정 — 대상마다 경감·커버링을 반영해 적용 (방어력은 적용 단계에서 뺀다)
 export async function finalizeDamage(
-  ctx: { cid: string; uid: string; gmUid: string; isGM: boolean; characters: Character[] },
+  ctx: { cid: string; uid: string; gmUid: string; isGM: boolean; characters: Character[]; tokens: Record<string, { ownerUid?: string }> },
   w: DamageWindow,
 ) {
   const results = resolveDamage(w);
@@ -96,6 +100,12 @@ export async function finalizeDamage(
       from: w.attacker.name,
       source: w.source,
     });
+  }
+  // 대미지와 함께 거는 BS — 실제로 받은 사람에게 (같은 사람은 한 번만)
+  if (w.statuses?.length) {
+    const seen = new Set<string>();
+    const to = results.map((r) => r.recipient).filter((t) => t.tid && !seen.has(t.tid) && seen.add(t.tid));
+    await sendStatus(ctx, to, w.statuses, w.attacker.name, w.source);
   }
   await cancelDamage(ctx.cid);
 }

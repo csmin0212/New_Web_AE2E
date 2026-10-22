@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { clearStunOnTurn, processEffect, runCleanup, subscribeEffects, syncConditions } from "@/lib/battle";
+import { clearStatusAt, processEffect, runCleanup, subscribeEffects, syncConditions } from "@/lib/battle";
+import { phaseOf } from "@/lib/battleRules";
 import { deleteReveal, updateCharacter, writeReveal } from "@/lib/campaigns";
 import { buildRevealDoc, REVEAL_DEFAULT, sameDoc } from "@/lib/reveal";
 import { useSession } from "./SessionContext";
@@ -9,7 +10,7 @@ import { useSession } from "./SessionContext";
 // GM 화면에서만 도는 자동 처리 (화면에는 아무것도 그리지 않는다)
 //   · 플레이어가 에너미·남의 캐릭터에게 보낸 대미지·회복 요청을 적용
 //   · 에너미 토큰에 부상·전투불능 표시를 붙인다
-//   · 라운드가 넘어가면 클린업 (BS 해제·독), 차례가 오면 스턴 해제
+//   · 전투 페이즈에 맞춰 클린업 (BS 해제·독), 때가 온 BS 해제
 //   · 비공개 캐릭터의 「플레이어 공개 본」을 만들고 HP 가 바뀌면 고친다
 export function GmAutomation() {
   const { cid, user, campaign, battle, characters, reveals } = useSession();
@@ -54,28 +55,29 @@ export function GmAutomation() {
     for (const id of Object.keys(reveals)) if (!ids.has(id) && characters.length) deleteReveal(cid, id).catch(() => {});
   }, [cid, characters, reveals]);
 
-  // 처음 본 값은 기준으로만 삼고, 그다음 바뀐 것에만 반응한다 (들어오자마자 지난 라운드를 다시 처리하지 않게)
-  const seenRound = useRef<number | null>(null);
-  const seenActor = useRef<string | null | undefined>(undefined);
+  // 처음 본 값은 기준으로만 삼고, 그다음 바뀐 것에만 반응한다 (들어오자마자 지난 일을 다시 처리하지 않게)
+  //   클린업 프로세스에 들어가면 클린업 · 셋업이 끝나면 속박 · 차례가 오면 스턴 · 메인이 끝나면 공포 · 전투가 끝나면 광전사화
+  const seen = useRef<{ round: number; actor: string | null; phase: string } | null>(null);
   const { round, actor } = battle.turn;
+  const phase = phaseOf(battle.turn);
   const loaded = !!battle.loaded;
   useEffect(() => {
     if (!loaded) return;
-    const prev = seenRound.current;
-    seenRound.current = round;
-    if (prev != null && round > prev) {
-      runCleanup({ cid, uid: user.uid, gmUid: campaign.gmUid }, round, battle).catch((e) => console.error("클린업 실패", e));
-    }
-    // battle 은 라운드가 바뀐 순간의 것만 쓴다
+    const prev = seen.current;
+    seen.current = { round, actor, phase };
+    if (!prev) return;
+    const ctx = { cid, uid: user.uid, gmUid: campaign.gmUid };
+    const fail = (e: unknown) => console.error("전투 자동 처리 실패", e);
+    (async () => {
+      if (prev.actor && prev.actor !== actor) await clearStatusAt(ctx, battle, "turn-end", [prev.actor]);
+      if (prev.phase === "setup" && phase !== "setup") await clearStatusAt(ctx, battle, "setup-end");
+      if (actor && actor !== prev.actor) await clearStatusAt(ctx, battle, "own-turn", [actor]);
+      if (phase === "cleanup" && prev.phase !== "cleanup") await runCleanup(ctx, round, battle);
+      if (phase === "idle" && prev.phase !== "idle") await clearStatusAt(ctx, battle, "battle-end");
+    })().catch(fail);
+    // battle 은 바뀐 순간의 것만 쓴다
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [round, loaded, cid, user.uid, campaign.gmUid]);
-  useEffect(() => {
-    if (!loaded) return;
-    const prev = seenActor.current;
-    seenActor.current = actor;
-    if (prev !== undefined && actor && actor !== prev) clearStunOnTurn(cid, actor, battle.tokens[actor]?.status).catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [actor, loaded, cid]);
+  }, [round, actor, phase, loaded, cid, user.uid, campaign.gmUid]);
 
   return null;
 }

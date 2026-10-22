@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeEffect, conditionOf, endTurn, giveTurn, initiativeOrder, parseCost, startBattle } from "./battleRules";
+import { beginMain, clearAt, computeEffect, conditionOf, endTurn, giveTurn, initiativeOrder, nextRound, parseCost, stackStatus, startBattle } from "./battleRules";
 
 const units = [
   { id: "gob", init: 8, side: "enemy" as const, name: "고블린" },
@@ -12,21 +12,24 @@ describe("행동 순서", () => {
     expect(initiativeOrder(units).map((u) => u.id)).toEqual(["rex", "elin", "gob"]);
   });
 
-  it("차례를 끝내면 다음 유닛, 다 끝나면 다음 라운드", () => {
+  it("셋업 → 메인(순서대로) → 클린업 → 다음 라운드 셋업", () => {
     const order = initiativeOrder(units);
-    let t = startBattle(order);
-    expect(t).toEqual({ actor: "rex", round: 1, acted: {} });
+    let t = startBattle();
+    expect(t).toEqual({ actor: null, round: 1, acted: {}, phase: "setup" });
+    t = beginMain(order, t);
+    expect(t).toMatchObject({ actor: "rex", phase: "main" });
     t = endTurn(order, t);
     expect(t.actor).toBe("elin");
     t = endTurn(order, t);
     expect(t.actor).toBe("gob");
     t = endTurn(order, t);
-    expect(t).toEqual({ actor: "rex", round: 2, acted: {} });
+    expect(t).toMatchObject({ actor: null, round: 1, phase: "cleanup" });
+    expect(nextRound(t)).toEqual({ actor: null, round: 2, acted: {}, phase: "setup" });
   });
 
   it("GM이 차례를 건네면 행동한 유닛도 다시 움직일 수 있다", () => {
     const order = initiativeOrder(units);
-    let t = endTurn(order, startBattle(order)); // rex 행동 끝
+    let t = endTurn(order, beginMain(order, startBattle())); // rex 행동 끝
     t = giveTurn(t, "rex");
     expect(t.actor).toBe("rex");
     t = endTurn(order, t);
@@ -71,6 +74,12 @@ describe("배드 스테이터스", () => {
   it("클린업에 멍함·격앙·넉백이 풀리고 독은 강도×5", async () => {
     const { cleanup, effectiveInit } = await import("./battleRules");
     expect(cleanup({ daze: 1, rage: 1, knockback: 2, poison: 3, awe: 1 })).toEqual({ next: { poison: 3, awe: 1 }, poison: 15 });
+    expect(clearAt({ stun: 1, fear: 1, bind: 1 }, "own-turn").cleared).toEqual(["stun"]);
+    expect(clearAt({ stun: 1, fear: 1, bind: 1 }, "turn-end").next).toEqual({ stun: 1, bind: 1 });
+    expect(clearAt({ bind: 1, berserk: 2 }, "setup-end").cleared).toEqual(["bind"]);
+    expect(stackStatus(3, 2, true)).toBe(3); // 강도는 높은 쪽
+    expect(stackStatus(1, 4, true)).toBe(4);
+    expect(stackStatus(undefined, 5, false)).toBe(1);
     expect(effectiveInit(12, { knockback: 2 })).toBe(2);
     expect(effectiveInit(12)).toBe(12);
   });

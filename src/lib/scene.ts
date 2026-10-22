@@ -190,7 +190,7 @@ export function subscribeBattle(cid: string, cb: (b: Battle) => void) {
       meta,
       tokens: v.tokens ?? {},
       pos: v.pos ?? {},
-      turn: { actor: v.turn?.actor ?? null, round: v.turn?.round ?? meta.round, acted: v.turn?.acted ?? {} },
+      turn: { actor: v.turn?.actor ?? null, round: v.turn?.round ?? meta.round, acted: v.turn?.acted ?? {}, ...(v.turn?.phase ? { phase: v.turn.phase } : {}) },
       terrain: v.terrain ?? {},
       terrainDefs: v.terrainDefs ?? {},
       damage: v.damage ?? undefined,

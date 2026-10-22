@@ -2,9 +2,23 @@
 
 import { tokenImageOf } from "@/lib/characterArt";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent } from "react";
-import { setTurn } from "@/lib/battle";
+import { beginBattle, setTurn } from "@/lib/battle";
 import { derive } from "@/lib/ar/derive";
-import { CONDITION_LABEL, effectiveInit, endTurn, giveTurn, initiativeOrder, startBattle, statusDefs, type StatusMap } from "@/lib/battleRules";
+import {
+  CONDITION_LABEL,
+  beginMain,
+  effectiveInit,
+  endTurn,
+  giveTurn,
+  initiativeOrder,
+  nextRound,
+  phaseOf,
+  startBattle,
+  statusDefs,
+  stopBattle,
+  type BattlePhase,
+  type StatusMap,
+} from "@/lib/battleRules";
 import { cellDistance, clearPointer, METERS_PER_CELL, setPointer, subscribePointers, type Cell, type Pointer } from "@/lib/pointer";
 import { moveToken, removeToken, setTokenSize, setTokenStatus, updateToken, type Token } from "@/lib/scene";
 import { splitTitle } from "@/lib/stage";
@@ -29,6 +43,32 @@ const SIDE_RING: Record<Token["side"], string> = {
   ally: "#4fae7c",
   enemy: "#d0463a",
 };
+
+// 라운드 진행 표시 — 셋업 · 메인(이니셔티브) · 클린업
+const PHASE_STEPS: { id: BattlePhase; label: string; latin: string }[] = [
+  { id: "setup", label: "셋업", latin: "SETUP" },
+  { id: "main", label: "메인", latin: "MAIN" },
+  { id: "cleanup", label: "클린업", latin: "CLEANUP" },
+];
+function PhaseSteps({ phase }: { phase: BattlePhase }) {
+  return (
+    <ol className="hidden shrink-0 flex-col justify-center gap-0.5 sm:flex" aria-label="라운드 진행">
+      {PHASE_STEPS.map((p) => {
+        const on = p.id === phase;
+        return (
+          <li
+            key={p.id}
+            className={`flex items-center gap-1.5 rounded px-1.5 text-[10px] leading-4 ${on ? "bg-accent font-bold text-accent-ink" : "text-muted"}`}
+            aria-current={on ? "step" : undefined}
+          >
+            <span className="font-latin w-12">{p.latin}</span>
+            <span>{p.label}</span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
 
 // 전투 모드 — 행동 순서 띠 + 그리드 + 유닛 카드 + (내 차례면) 행동 바
 export function BattleStage() {
@@ -79,10 +119,20 @@ export function BattleStage() {
   }
   const targets = targetIds.map((id) => units.find((u) => u.id === id)).filter((u): u is Unit => !!u);
 
+  const phase = phaseOf(turn);
+  // 라운드 진행: 전투 전 → 셋업 → (이니셔티브·메인) → 클린업 → 다음 라운드 셋업
   function finishTurn() {
     if (!order.length) return;
     setDockPick(null);
-    setTurn(cid, turn.actor ? endTurn(order, turn) : startBattle(order));
+    if (phase === "idle") return beginBattle(cid, startBattle());
+    if (phase === "setup") return setTurn(cid, beginMain(order, turn));
+    if (phase === "cleanup") return setTurn(cid, nextRound(turn));
+    setTurn(cid, turn.actor ? endTurn(order, turn) : beginMain(order, turn));
+  }
+  function endBattle() {
+    if (!confirm("전투를 끝낼까요? 라운드가 처음으로 돌아가고, ‘전투가 끝나면’ 풀리는 BS 가 풀려요.")) return;
+    setDockPick(null);
+    setTurn(cid, stopBattle());
   }
 
   function unitMenu(e: MouseEvent, u: Unit) {
@@ -167,6 +217,7 @@ export function BattleStage() {
           <span className="font-latin text-[10px] text-muted">ROUND</span>
           <span className="font-latin text-3xl leading-none text-accent">{String(turn.round).padStart(2, "0")}</span>
         </div>
+        <PhaseSteps phase={phase} />
         <ol className="chip-row min-w-0 flex-1 items-center gap-2">
           {order.length === 0 && <li className="text-sm text-muted">{isGM ? "‘연출’ 패널에서 토큰을 올리세요." : "전투 준비 중…"}</li>}
           {order.map((u) => {
@@ -200,16 +251,41 @@ export function BattleStage() {
         {order.length > 0 && (
           <div className="flex shrink-0 flex-col items-end justify-center gap-0.5">
             {current && <span className="text-[11px] whitespace-nowrap text-muted">{splitTitle(current.name).name}의 차례</span>}
-            {!turn.actor && isGM && (
-              <button className="btn-primary pop" onClick={finishTurn}>
-                <span>전투 개시 ▶</span>
-              </button>
-            )}
-            {turn.actor && canEnd && (
-              <button className={`${gmPassing ? "btn" : "btn-primary"} pop`} onClick={finishTurn} title={gmPassing ? "플레이어 대신 차례를 넘겨요" : undefined}>
-                <span>{gmPassing ? "다음 차례 ▶" : "행동 종료 ▶"}</span>
-              </button>
-            )}
+            {phase === "setup" && <span className="hidden text-[11px] whitespace-nowrap text-muted xl:inline">셋업 타이밍 스킬을 쓰세요</span>}
+            {phase === "cleanup" && <span className="hidden text-[11px] whitespace-nowrap text-muted xl:inline">클린업 처리 · 클린업 타이밍 스킬</span>}
+            <div className="flex items-center gap-1">
+              {isGM && phase !== "idle" && (
+                <button className="btn pop px-2" onClick={endBattle} title="전투 끝내기">
+                  <span>■</span>
+                </button>
+              )}
+              {isGM && phase === "idle" && (
+                <button className="btn-primary pop" onClick={finishTurn}>
+                  <span>전투 개시 ▶</span>
+                </button>
+              )}
+              {isGM && phase === "setup" && (
+                <button className="btn-primary pop" onClick={finishTurn} title="셋업 프로세스를 끝내고 이니셔티브 — 행동치 순으로 차례를 시작해요">
+                  <span>셋업 끝 ▶</span>
+                </button>
+              )}
+              {phase === "main" && turn.actor && canEnd && (
+                <button className={`${gmPassing ? "btn" : "btn-primary"} pop`} onClick={finishTurn} title={gmPassing ? "플레이어 대신 차례를 넘겨요" : undefined}>
+                  <span>{gmPassing ? "다음 차례 ▶" : "행동 종료 ▶"}</span>
+                </button>
+              )}
+              {isGM && phase === "main" && !turn.actor && (
+                <button className="btn-primary pop" onClick={finishTurn}>
+                  <span>이니셔티브 ▶</span>
+                </button>
+              )}
+              {isGM && phase === "cleanup" && (
+                <button className="btn-primary pop" onClick={finishTurn} title="다음 라운드 셋업 프로세스로">
+                  <span>다음 라운드 ▶</span>
+                </button>
+              )}
+              {!isGM && (phase === "setup" || phase === "cleanup") && <span className="text-[11px] text-muted">GM 이 진행해요</span>}
+            </div>
           </div>
         )}
       </div>

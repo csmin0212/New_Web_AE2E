@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { phaseOf } from "@/lib/battleRules";
 import { fxDef, onLocalFx, subscribeFx, type FxEvent } from "@/lib/fxEvents";
 import { checkOutcome } from "@/lib/inline";
 import { splitTitle } from "@/lib/stage";
@@ -33,17 +34,22 @@ export function FxEvents() {
   useEffect(() => onLocalFx(push), []);
 
   // ── 자동: 전투 개시·라운드·차례 ──
-  const prevTurn = useRef<{ actor: string | null; round: number } | null>(null);
+  const prevTurn = useRef<{ actor: string | null; round: number; phase: string } | null>(null);
   const { actor, round } = battle.turn;
+  const phase = phaseOf(battle.turn);
   useEffect(() => {
     if (!battle.loaded) return;
     const prev = prevTurn.current;
-    prevTurn.current = { actor, round };
-    if (!prev || !actor || actor === prev.actor) return;
+    prevTurn.current = { actor, round, phase };
+    if (!prev) return;
+    if (phase !== prev.phase) {
+      if (prev.phase === "idle" && phase === "setup") push({ kind: "encounter", text: "ENCOUNTER", sub: "전투 개시 · 셋업 프로세스", at: Date.now() });
+      else if (phase === "setup" && round > prev.round) push({ kind: "round", text: `ROUND ${String(round).padStart(2, "0")}`, sub: "셋업 프로세스", at: Date.now() });
+      else if (phase === "cleanup") push({ kind: "round", text: "CLEANUP", sub: `라운드 ${round} 클린업 프로세스`, at: Date.now() });
+    }
+    if (!actor || actor === prev.actor) return;
     const t = battle.tokens[actor];
     if (!t) return;
-    if (!prev.actor) push({ kind: "encounter", text: "ENCOUNTER", sub: "전투 개시", at: Date.now() });
-    else if (round > prev.round) push({ kind: "round", text: `ROUND ${String(round).padStart(2, "0")}`, at: Date.now() });
     const c = t.charId ? characters.find((x) => x.id === t.charId) : undefined;
     const mine = !!t.ownerUid && t.ownerUid === user.uid;
     const enemy = t.side === "enemy";
@@ -60,9 +66,9 @@ export function FxEvents() {
       enemy,
       at: Date.now(),
     });
-    // 토큰·캐릭터가 바뀔 때마다 다시 틀지 않게 차례·라운드만 본다
+    // 토큰·캐릭터가 바뀔 때마다 다시 틀지 않게 차례·라운드·페이즈만 본다
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [actor, round, battle.loaded]);
+  }, [actor, round, phase, battle.loaded]);
 
   // ── 자동: 크리티컬·펌블 (방금 굴린 판정만) ──
   const seenRoll = useRef<string | null>(null);
@@ -126,6 +132,7 @@ export function FxView({ e, onSkip }: { e: FxEvent; onSkip?: () => void }) {
           <div className="fxe-line fxe-line--l" />
           <div className="fxe-line fxe-line--r" />
           <div className="fxe-big">{text}</div>
+          {sub && <div className="fxe-sub">{sub}</div>}
         </>
       )}
       {e.kind === "turn" && (
