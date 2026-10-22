@@ -12,6 +12,7 @@ import {
   update,
 } from "firebase/database";
 import { rtdb } from "./firebase";
+import { normalizeMessage } from "./chatNormalize";
 import type { ChatMessage } from "./types";
 
 // 채팅은 Realtime DB 에 둔다.
@@ -64,8 +65,7 @@ export function subscribeChat(cid: string, uid: string, onChange: (messages: Cha
   ];
   const unsubs = sources.flatMap((q) => [
     onChildAdded(q, (snap) => {
-      const v = snap.val() as Omit<ChatMessage, "id">;
-      byId.set(snap.key!, { ...v, id: snap.key!, ts: typeof v.ts === "number" ? v.ts : Date.now() });
+      byId.set(snap.key!, normalizeMessage(snap.val() as Omit<ChatMessage, "id">, snap.key!));
       emit();
     }),
     onChildRemoved(q, (snap) => {

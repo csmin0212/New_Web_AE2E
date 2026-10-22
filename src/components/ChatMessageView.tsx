@@ -218,7 +218,7 @@ function Bold({ text }: { text: string }) {
 }
 
 function RollChip({ r }: { r: InlineResult }) {
-  const detail = r.dice.map((d) => `[${d.results.join(",")}]`).join(" ");
+  const detail = (r.dice ?? []).map((d) => `[${(d.results ?? []).join(",")}]`).join(" ");
   return (
     <span
       className="mx-0.5 inline-flex items-baseline gap-1 rounded border border-accent/60 bg-accent/15 px-1.5 font-bold text-accent"
