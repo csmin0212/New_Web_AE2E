@@ -464,7 +464,7 @@ function Grid({
           height: rows * cell,
           backgroundImage: background
             ? `url("${background}")`
-            : "radial-gradient(ellipse at 50% 40%, color-mix(in srgb, var(--accent) 10%, var(--panel-2)), var(--bg))",
+            : "var(--art-battle, none), radial-gradient(ellipse at 50% 40%, color-mix(in srgb, var(--accent) 10%, var(--panel-2)), var(--bg))",
           backgroundSize: "cover",
           backgroundPosition: "center",
           outline: "1px solid color-mix(in srgb, var(--accent) 40%, transparent)",

@@ -37,6 +37,7 @@
 /* 배경을 아직 안 정했을 때: 테마 무늬 위에 은은한 빛 */
 .stage__bg--empty {
   background:
+    var(--art-stage, none) center / cover no-repeat,
     radial-gradient(ellipse at 50% 120%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 60%),
     var(--pattern),
     linear-gradient(180deg, var(--panel), var(--bg));

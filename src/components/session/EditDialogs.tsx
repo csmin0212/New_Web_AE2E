@@ -7,6 +7,7 @@ import { removeNpc, saveNpc, updateNpc, type NpcPreset } from "@/lib/scene";
 import type { Character } from "@/lib/types";
 import { ImageDrop } from "../ImageDrop";
 import { useSession } from "./SessionContext";
+import { portalRoot } from "./ThemeRoot";
 
 export const KIND_LABEL: Record<Character["kind"], string> = { pc: "PC", npc: "NPC", enemy: "에너미" };
 
@@ -29,7 +30,7 @@ export function Modal({ title, onClose, children, width = 460 }: { title: string
         {children}
       </div>
     </div>,
-    document.body,
+    portalRoot(),
   );
 }
 

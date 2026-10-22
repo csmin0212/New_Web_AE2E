@@ -52,20 +52,41 @@ export function TopBar({
       </nav>
 
       <div className="ml-auto flex items-center gap-1.5">
-        <select
-          className="input h-8 w-auto py-0 text-xs"
-          value={override ?? ""}
-          onChange={(e) => setOverride((e.target.value || null) as ThemeId | null)}
-          aria-label="내 화면 테마"
-          title="내 화면에서만 테마를 바꿔 봐요"
-        >
-          <option value="">테마: 캠페인 기본</option>
-          {THEMES.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name}
-            </option>
-          ))}
-        </select>
+        {isGM ? (
+          // GM: 고르면 캠페인 테마가 바뀌어 모두의 화면에 적용된다
+          <select
+            className="input h-8 w-auto py-0 text-xs"
+            value={scene.theme}
+            onChange={(e) => {
+              updateScene(cid, { theme: e.target.value as ThemeId });
+              setOverride(null);
+            }}
+            aria-label="캠페인 테마"
+            title="모두의 화면 테마를 바꿔요"
+          >
+            {THEMES.map((t) => (
+              <option key={t.id} value={t.id}>
+                테마: {t.name} (모두에게)
+              </option>
+            ))}
+          </select>
+        ) : (
+          // 플레이어: GM 테마를 따르거나, 내 화면에서만 다른 테마로
+          <select
+            className="input h-8 w-auto py-0 text-xs"
+            value={override ?? ""}
+            onChange={(e) => setOverride((e.target.value || null) as ThemeId | null)}
+            aria-label="내 화면 테마"
+            title="내 화면에서만 테마를 바꿔 봐요"
+          >
+            <option value="">테마: GM 설정 따르기</option>
+            {THEMES.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name} (내 화면만)
+              </option>
+            ))}
+          </select>
+        )}
         <span className="hidden text-xs text-muted sm:inline">{members.length}명</span>
         {isGM && (
           <button

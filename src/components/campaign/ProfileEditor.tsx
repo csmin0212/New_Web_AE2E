@@ -38,7 +38,7 @@ export function ProfileEditor({
       void _owner;
       const data = { ...rest, title: d.title.trim(), group: d.group?.trim() || undefined, subtitle: d.subtitle?.trim() || undefined };
       let id = existing;
-      if (id) await patchJournal(cid, id, { ...data, image: data.image, charId: data.charId });
+      if (id) await patchJournal(cid, id, { ...data, image: data.image, charId: data.charId, bg: data.bg, quote: data.quote?.trim() || undefined });
       else id = await createJournal(cid, user.uid, d.type, data);
       onSaved?.(id);
       onClose();
@@ -51,14 +51,17 @@ export function ProfileEditor({
   return (
     <Modal title={d.id ? `${d.title || "항목"} 고치기` : person ? "인물 프로필 만들기" : "지역 추가"} onClose={onClose} width={620}>
       <div className="grid gap-4 text-sm sm:grid-cols-[200px_1fr]">
-        <ImageDrop
-          user={user}
-          kind={person ? "standing" : "background"}
-          label={person ? "그림 (스탠딩·일러스트)" : "풍경 그림"}
-          value={d.image}
-          onChange={(v) => up({ image: v })}
-          aspect={person ? "aspect-[3/4]" : "aspect-video"}
-        />
+        <div className="space-y-2">
+          <ImageDrop
+            user={user}
+            kind={person ? "standing" : "background"}
+            label={person ? "그림 (스탠딩·일러스트)" : "풍경 그림"}
+            value={d.image}
+            onChange={(v) => up({ image: v })}
+            aspect={person ? "aspect-[3/4]" : "aspect-video"}
+          />
+          {person && <ImageDrop user={user} kind="background" label="프로필 배경 (선택)" value={d.bg} onChange={(v) => up({ bg: v })} aspect="aspect-video" />}
+        </div>
         <div className="space-y-2.5">
           <label className="block">
             <span className="text-xs text-muted">{person ? "이름" : "지명"}</span>
@@ -77,6 +80,12 @@ export function ProfileEditor({
               ))}
             </datalist>
           </label>
+          {person && (
+            <label className="block">
+              <span className="text-xs text-muted">대표 대사 한 줄 (프로필 위에 크게)</span>
+              <input className="input mt-0.5" value={d.quote ?? ""} onChange={(e) => up({ quote: e.target.value })} placeholder="별은 다시 떠오를 거야." />
+            </label>
+          )}
           {person && isGM && (
             <label className="block">
               <span className="text-xs text-muted">캠페인 캐릭터와 연결 (그림·능력치를 함께 보여 줌)</span>

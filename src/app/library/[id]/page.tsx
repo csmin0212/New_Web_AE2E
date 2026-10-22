@@ -8,7 +8,9 @@ import { ArSheetEditor } from "@/components/ArSheetEditor";
 import { ImageDrop } from "@/components/ImageDrop";
 import { AddToCampaign } from "@/components/library/AddToCampaign";
 import { useAuth } from "@/lib/auth";
-import { createEntry, deleteEntry, saveEntry, subscribeEntry, type LibraryEntry, type LibraryKind } from "@/lib/library";
+import { fromGoogleSheetGrid, isGoogleArSheet } from "@/lib/ar/googleSheet";
+import { fetchSheetGridClient } from "@/lib/campaigns";
+import { createEntry, deleteEntry, patchEntry, saveEntry, subscribeEntry, type LibraryEntry, type LibraryKind } from "@/lib/library";
 import type { Gauge } from "@/lib/types";
 
 const SAVE_DELAY = 700;
@@ -91,6 +93,33 @@ export default function LibraryEntryPage() {
             {{ saved: "저장됨", dirty: "고치는 중…", saving: "저장 중…", error: "저장 실패 — 연결을 확인하세요" }[status]}
           </span>
           <div className="ml-auto flex gap-2">
+            {e.sheetRef && (
+              <button
+                className="btn"
+                title={`구글 시트 「${e.sheetRef.tab}」 탭에서 다시 읽어요 (그림·태그는 그대로)`}
+                onClick={async () => {
+                  const ref = e.sheetRef!;
+                  try {
+                    const grid = await fetchSheetGridClient(user, ref.id, { title: ref.tab, gid: ref.gid });
+                    if (!isGoogleArSheet(grid)) throw new Error("캐릭터 시트 양식이 아니에요.");
+                    const r = fromGoogleSheetGrid(grid, ref.tab);
+                    await patchEntry(user.uid, e.id, {
+                      name: r.sheet.profile.name,
+                      ar: r.sheet,
+                      hp: { cur: r.hp, max: r.hp },
+                      mp: { cur: r.mp, max: r.mp },
+                      fate: { cur: r.fate, max: r.fate },
+                      bio: r.bio,
+                    });
+                    alert("시트에서 다시 불러왔어요.");
+                  } catch (err) {
+                    alert(err instanceof Error ? err.message : "불러오지 못했어요.");
+                  }
+                }}
+              >
+                <span>시트에서 다시 불러오기</span>
+              </button>
+            )}
             <button
               className="btn"
               onClick={async () => {

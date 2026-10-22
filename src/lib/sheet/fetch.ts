@@ -61,7 +61,7 @@ async function fetchByApi(sheetId: string, tab: string): Promise<string[][] | nu
   const token = await accessToken();
   if (!token) return null;
   // 스킬란(B65:D104, B144:D181)까지 포함해야 하므로 181행까지 읽는다
-  const range = `${quoteSheet(tab)}!A1:AK181`;
+  const range = `${quoteSheet(tab)}!A1:AN190`;
   const res = await fetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(range)}`,
     { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
@@ -96,6 +96,54 @@ export async function fetchCharacterSheet(sheetId: string, tab: string): Promise
     throw new SheetError(`'${tab}' 탭에서 캐릭터 정보를 찾지 못했어요. 탭 이름을 확인해주세요.`);
   }
   return parseSheetGrid(csvGrid, tab, sheetId);
+}
+
+// ── 툴 안 시트로 가져오기용: 탭 목록과 탭 원본(칸 그대로) ──
+
+export type SheetTab = { title: string; gid: string };
+
+// 탭 목록 — 서비스 계정이 있으면 Sheets API, 없으면 공개 시트의 htmlview 에서 읽는다
+export async function listSheetTabs(sheetId: string): Promise<SheetTab[]> {
+  const token = await accessToken().catch(() => null);
+  if (token) {
+    const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}?fields=sheets.properties(title,sheetId)`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    });
+    if (res.ok) {
+      const data = (await res.json()) as { sheets?: { properties: { title: string; sheetId: number } }[] };
+      const tabs = (data.sheets ?? []).map((x) => ({ title: x.properties.title, gid: String(x.properties.sheetId) }));
+      if (tabs.length) return tabs;
+    }
+  }
+  const res = await fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/htmlview`, { cache: "no-store" });
+  if (!res.ok) throw new SheetError("시트를 열지 못했어요. 주소와 공유 설정을 확인해주세요.");
+  const html = await res.text();
+  const tabs: SheetTab[] = [];
+  for (const m of html.matchAll(/name: "((?:[^"\\]|\\.)*)"[^}]*?gid=(\d+)/g)) {
+    // htmlview 는 이름 속 특수 문자를 \x3c 처럼 적어 둔다
+    const title = m[1].replace(/\\x([0-9a-f]{2})/gi, (_, h) => String.fromCharCode(parseInt(h, 16))).replace(/\\(.)/g, "$1");
+    if (!tabs.some((t) => t.gid === m[2])) tabs.push({ title, gid: m[2] });
+  }
+  if (!tabs.length) throw new SheetError("탭 목록을 찾지 못했어요. 시트가 '링크가 있는 모든 사용자 보기'인지 확인해주세요.");
+  return tabs;
+}
+
+// 탭 하나를 칸 그대로 — gid 가 있으면 gid 로, 없으면 이름으로
+export async function fetchSheetGrid(sheetId: string, tab: { title?: string; gid?: string }): Promise<string[][]> {
+  if (tab.title) {
+    const api = await fetchByApi(sheetId, tab.title).catch(() => null);
+    if (api && api.length) return api;
+  }
+  const url = tab.gid
+    ? `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${encodeURIComponent(tab.gid)}`
+    : `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&headers=0&sheet=${encodeURIComponent(tab.title ?? "")}`;
+  const res = await fetch(url, { redirect: "follow", cache: "no-store" });
+  if (!res.ok) throw new SheetError("시트를 불러오지 못했어요. 주소와 공유 설정을 확인해주세요.");
+  const text = await res.text();
+  if (/^\s*<(!doctype|html)/i.test(text)) throw new SheetError("시트가 비공개예요. '링크가 있는 모든 사용자 보기'로 공유해주세요.");
+  if (/google\.visualization\.Query|"status":"error"/.test(text)) throw new SheetError("탭을 찾지 못했어요.");
+  return parseCsv(text);
 }
 
 export { SheetError };

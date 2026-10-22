@@ -21,6 +21,8 @@ export type LibraryEntry = {
   color?: string;
   tags: string[];
   roll20Id?: string; // 다시 가져올 때 같은 캐릭터를 알아보는 데 쓴다
+  sheetRef?: { id: string; gid?: string; tab: string }; // 구글 시트에서 가져왔으면 그 탭 (다시 불러오기)
+  bio?: string; // 시트의 「캐릭터 설정, 소개, 메모」
   createdAt: number;
   updatedAt: number;
 };

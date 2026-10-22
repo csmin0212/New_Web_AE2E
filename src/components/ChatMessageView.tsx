@@ -4,6 +4,7 @@ import { memo, useEffect, useRef, useState, type CSSProperties } from "react";
 import type { RollResult } from "@/lib/dice";
 import type { InlineResult, Segment } from "@/lib/inline";
 import { splitTitle } from "@/lib/stage";
+import { parseStyledText } from "@/lib/styledText";
 import type { ChatCard, ChatMessage } from "@/lib/types";
 
 // 채팅이 하나 올 때마다 300개를 다시 그리지 않게, 내용이 같은 메시지는 건너뛴다
@@ -188,24 +189,38 @@ export function SkillName({ name, color, glow, className = "" }: { name: string;
 export function RichText({ segments, className = "" }: { segments: Segment[]; className?: string }) {
   return (
     <div className={`whitespace-pre-wrap ${className}`}>
-      {segments.map((s, i) => (typeof s === "string" ? <Bold key={i} text={s} /> : <RollChip key={i} r={s} />))}
+      {segments.map((s, i) => (typeof s === "string" ? <StyledText key={i} text={s} /> : <RollChip key={i} r={s} />))}
     </div>
   );
 }
 
-function Bold({ text }: { text: string }) {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+// 스킬 설명 글씨 — Roll20 꾸밈([글자](#" style="…")), **굵게**, *기울임*
+function StyledText({ text }: { text: string }) {
   return (
     <>
-      {parts.map((p, i) =>
-        p.startsWith("**") && p.endsWith("**") ? (
-          <strong key={i} className="text-text">
-            {p.slice(2, -2)}
-          </strong>
-        ) : (
-          <span key={i}>{p}</span>
-        ),
-      )}
+      {parseStyledText(text).map((p, i) => {
+        if (p.kind === "bold")
+          return (
+            <strong key={i} className="text-text">
+              {p.text}
+            </strong>
+          );
+        if (p.kind === "italic")
+          return (
+            <em key={i} className="text-muted">
+              {p.text}
+            </em>
+          );
+        if (p.kind === "styled") {
+          const Tag = p.block ? "div" : "span";
+          return (
+            <Tag key={i} style={p.style as CSSProperties}>
+              {p.text}
+            </Tag>
+          );
+        }
+        return <span key={i}>{p.text}</span>;
+      })}
     </>
   );
 }

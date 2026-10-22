@@ -44,7 +44,7 @@ export function CampaignShell({ active, children }: { active: CampaignTab; child
   return (
     <SessionProvider cid={cid} user={user} campaign={state.campaign} members={state.members} characters={state.characters}>
       <ThemeRoot>
-        <div className="flex h-dvh flex-col" style={{ background: "var(--pattern), var(--bg)" }}>
+        <div className="flex h-dvh flex-col" style={{ background: "var(--art-page, none) center / cover fixed, var(--pattern), var(--bg)" }}>
           <ShellHeader active={active} />
           <div className="min-h-0 flex-1">{children}</div>
         </div>

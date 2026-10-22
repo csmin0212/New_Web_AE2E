@@ -42,6 +42,7 @@ export type Scene = {
   autoCast: boolean; // 말한 사람이 자동으로 무대에 오르는지
   talkView: TalkView;
   actorScale: number; // 무대 인물 크기 (1 = 기본)
+  showcase?: { partyBg?: string; castBg?: string; atlasBg?: string }; // 등장인물·지역 도감 페이지 배경 (GM)
   cast: Record<string, CastEntry>;
   npcs: Record<string, NpcPreset>;
   presets: Record<string, ScenePreset>; // 저장해 둔 장면 (코코포리아의 씬)

@@ -29,6 +29,8 @@ export type JournalEntry = {
   subtitle?: string; // 칭호·소속 (인물), 한 줄 소개 (지역)
   group?: string; // 묶음: 인물은 세력·소속, 지역은 나라·권역
   charId?: string; // 캠페인 캐릭터와 연결된 인물 프로필
+  bg?: string; // 프로필 뒤에 까는 배경 그림 (인물)
+  quote?: string; // 대표 대사 한 줄 (인물)
   body: string; // 간단한 마크다운 (# 제목, - 목록, **굵게**)
   image?: string;
   shared: boolean; // 모두에게 공개
@@ -50,6 +52,8 @@ function toEntry(id: string, d: Record<string, unknown>): JournalEntry {
     subtitle: (d.subtitle as string) || undefined,
     group: (d.group as string) || undefined,
     charId: (d.charId as string) || undefined,
+    bg: (d.bg as string) || undefined,
+    quote: (d.quote as string) || undefined,
     shared: !!d.shared,
     viewers: (d.viewers as string[]) ?? [],
     ownerUid: (d.ownerUid as string) ?? "",
@@ -109,6 +113,8 @@ export async function saveJournal(cid: string, e: JournalEntry) {
     subtitle: rest.subtitle ?? null,
     group: rest.group ?? null,
     charId: rest.charId ?? null,
+    bg: rest.bg ?? null,
+    quote: rest.quote ?? null,
     updatedAt: Date.now(),
   });
 }

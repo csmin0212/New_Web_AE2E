@@ -96,6 +96,25 @@ export async function fetchSheet(user: User, sheetId: string, tab: string): Prom
   return data.sheet;
 }
 
+// 구글 시트 → 툴 안 시트용 (탭 목록 / 탭 원본 칸)
+async function sheetApi<T>(user: User, body: Record<string, string | undefined>): Promise<T> {
+  const token = await user.getIdToken();
+  const res = await fetch("/api/sheet", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  });
+  const data = (await res.json().catch(() => ({}))) as T & { error?: string };
+  if (!res.ok) throw new Error(data.error ?? "시트를 불러오지 못했어요.");
+  return data;
+}
+export async function fetchSheetTabs(user: User, sheetId: string) {
+  return (await sheetApi<{ tabs: { title: string; gid: string }[] }>(user, { sheetId, mode: "tabs" })).tabs;
+}
+export async function fetchSheetGridClient(user: User, sheetId: string, tab: { title?: string; gid?: string }) {
+  return (await sheetApi<{ grid: string[][] }>(user, { sheetId, tab: tab.title, gid: tab.gid, mode: "grid" })).grid;
+}
+
 export async function addCharacter(
   cid: string,
   sheet: ParsedSheet,

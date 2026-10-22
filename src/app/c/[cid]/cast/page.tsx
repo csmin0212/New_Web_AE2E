@@ -8,7 +8,9 @@ import "@/components/campaign/showcase.css";
 import { JournalBody } from "@/components/JournalView";
 import { Modal } from "@/components/session/EditDialogs";
 import { useSession } from "@/components/session/SessionContext";
+import { ImageDrop } from "@/components/ImageDrop";
 import { useImageShape } from "@/lib/imageShape";
+import { updateScene } from "@/lib/scene";
 import { patchJournal, showJournal, subscribeJournal, type JournalEntry } from "@/lib/journal";
 import { splitTitle } from "@/lib/stage";
 import type { Character } from "@/lib/types";
@@ -43,7 +45,8 @@ function classLine(c?: Character): string | undefined {
 //  ├ CAST — 세력별 인물 카드                              │
 //  └ 누르면 큰 프로필                                      ┘
 function Cast() {
-  const { cid, user, isGM, characters } = useSession();
+  const { cid, user, isGM, characters, scene } = useSession();
+  const [bgEdit, setBgEdit] = useState(false);
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [open, setOpen] = useState<string | null>(null);
   const [editing, setEditing] = useState<ProfileDraft | null>(null);
@@ -111,7 +114,12 @@ function Cast() {
   return (
     <div className="h-full overflow-y-auto">
       {/* PARTY */}
-      <section className="sc-stage">
+      <section className="sc-stage" style={scene.showcase?.partyBg ? ({ "--party-bg": `url("${scene.showcase.partyBg}")` } as CSSProperties) : undefined}>
+        {isGM && (
+          <button className="btn absolute top-3 right-3 z-10 h-7 text-[11px]" onClick={() => setBgEdit(true)} title="모험가들 무대 뒤에 깔 그림 (GM)">
+            <span>무대 배경</span>
+          </button>
+        )}
         <div className="sc-title">
           PARTY
           <b>모험가들</b>
@@ -201,6 +209,19 @@ function Cast() {
         />
       )}
       {editing && <ProfileEditor draft={editing} groups={groupNames} onClose={() => setEditing(null)} />}
+      {bgEdit && (
+        <Modal title="모험가들 무대 배경" onClose={() => setBgEdit(false)} width={460}>
+          <ImageDrop
+            user={user}
+            kind="background"
+            label="배경 그림 (가로로 긴 그림 · 비우면 테마 기본)"
+            value={scene.showcase?.partyBg}
+            onChange={(v) => updateScene(cid, { showcase: { ...scene.showcase, partyBg: v ?? undefined } })}
+            aspect="aspect-video"
+          />
+          <p className="mt-2 text-[11px] text-muted">어두운 띠가 덮여서 인물이 잘 보여요. 바로 모두에게 적용돼요.</p>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -242,7 +263,10 @@ function ProfileView({ p, onClose, onEdit }: { p: Person; onClose: () => void; o
   const [msg, setMsg] = useState<string | null>(null);
   return (
     <Modal title={p.group === "PARTY" ? "PARTY" : p.group} onClose={onClose} width={860}>
-      <div className="grid gap-5 md:grid-cols-[minmax(0,320px)_1fr]" style={{ "--hero": p.color } as CSSProperties}>
+      {/* 프로필 배경 — 주인이 고른 그림을 뒤에 흐리게 깐다 */}
+      <div className="sc-profile" style={{ "--hero": p.color, "--bg": e?.bg ? `url("${e.bg}")` : undefined } as CSSProperties} data-has-bg={e?.bg ? "1" : undefined}>
+      {e?.quote && <p className="sc-quote">「{e.quote}」</p>}
+      <div className="grid gap-5 md:grid-cols-[minmax(0,320px)_1fr]">
         <div className="relative overflow-hidden rounded-md border border-line bg-panel-2">
           {p.image ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -257,7 +281,7 @@ function ProfileView({ p, onClose, onEdit }: { p: Person; onClose: () => void; o
             <h2 className="font-display text-3xl leading-tight font-black" style={{ color: p.color }}>
               {p.name}
             </h2>
-            {c && classLine(c) && <div className="font-latin mt-1 text-[11px] text-accent">{classLine(c)}</div>}
+            {c && classLine(c) && classLine(c) !== p.title && <div className="font-latin mt-1 text-[11px] text-accent">{classLine(c)}</div>}
           </div>
           {e ? <JournalBody body={e.body} /> : <p className="text-sm text-muted">아직 소개가 없어요.</p>}
           <div className="flex flex-wrap gap-2 pt-2">
@@ -289,6 +313,7 @@ function ProfileView({ p, onClose, onEdit }: { p: Person; onClose: () => void; o
           </div>
           {msg && <p className="text-xs text-accent">{msg}</p>}
         </div>
+      </div>
       </div>
     </Modal>
   );

@@ -3,9 +3,11 @@
 import type { User } from "firebase/auth";
 import { useState } from "react";
 import { importCandidates, parseImport, type ImportCandidate, type LibraryEntry } from "@/lib/library";
+import { SheetLibraryImport } from "./SheetLibraryImport";
 
 // Roll20 핸드아웃 내용(여러 개 이어 붙여도 됨) / ARON JSON → 미리보기 → 골라서 보관함에
 export function ImportPanel({ user, existing, onClose }: { user: User; existing: LibraryEntry[]; onClose: () => void }) {
+  const [mode, setMode] = useState<"sheet" | "roll20">("sheet");
   const [text, setText] = useState("");
   const [list, setList] = useState<ImportCandidate[] | null>(null);
   const [picked, setPicked] = useState<Set<string>>(new Set());
@@ -61,7 +63,26 @@ export function ImportPanel({ user, existing, onClose }: { user: User; existing:
           </button>
         </header>
 
-        {!list ? (
+        <div className="mb-3 flex overflow-hidden rounded-md border border-line text-sm">
+          {(
+            [
+              ["sheet", "구글 시트에서"],
+              ["roll20", "Roll20에서"],
+            ] as const
+          ).map(([m, label]) => (
+            <button key={m} className={`flex-1 px-3 py-1.5 ${mode === m ? "bg-accent font-bold text-accent-ink" : "bg-panel-2 text-muted hover:text-text"}`} onClick={() => setMode(m)}>
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {mode === "sheet" ? (
+          result ? (
+            <p className="text-sm text-accent">{result}</p>
+          ) : (
+            <SheetLibraryImport user={user} existing={existing} onDone={setResult} />
+          )
+        ) : !list ? (
           <>
             <ol className="mb-2 list-inside list-decimal space-y-0.5 text-xs text-muted">
               <li>

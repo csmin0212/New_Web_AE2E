@@ -54,7 +54,7 @@ body {
 }
 
 .theme-root {
-  background: var(--pattern), var(--bg);
+  background: var(--art-page, none) center / cover fixed, var(--pattern), var(--bg);
   color: var(--text);
 }
 

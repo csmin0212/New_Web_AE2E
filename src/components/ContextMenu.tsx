@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { portalRoot } from "./session/ThemeRoot";
 
 // 우클릭 메뉴. 쓰는 쪽:
 //   const menu = useContextMenu();
@@ -95,6 +96,6 @@ function Menu({ state, onClose }: { state: OpenState; onClose: () => void }) {
         );
       })}
     </div>,
-    document.body,
+    portalRoot(),
   );
 }

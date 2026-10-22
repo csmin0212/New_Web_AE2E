@@ -5,7 +5,8 @@ import { useState } from "react";
 import { fromAron, isAronMonster } from "@/lib/ar/aron";
 import { fromRoll20, isRoll20Export } from "@/lib/ar/roll20";
 import { emptyStats, type ArSheet } from "@/lib/ar/types";
-import { addArCharacter, addCharacter, fetchSheet } from "@/lib/campaigns";
+import { fromGoogleSheetGrid, isGoogleArSheet } from "@/lib/ar/googleSheet";
+import { addArCharacter, addCharacter, fetchSheet, fetchSheetGridClient } from "@/lib/campaigns";
 import { extractSheetId } from "@/lib/sheet/parse";
 import type { Character, Member } from "@/lib/types";
 
@@ -121,11 +122,20 @@ export function SheetImport({
 
   async function importGoogle(): Promise<string> {
     const id = extractSheetId(sheetId);
-    const sheet = await fetchSheet(user, id, tab.trim());
-    await addCharacter(cid, sheet, { kind, ownerUid: owner, order: nextOrder });
+    const gid = sheetId.match(/[#&?]gid=(\d+)/)?.[1];
     try {
       localStorage.setItem(`${LAST_SHEET_KEY}:${cid}`, id);
     } catch {}
+    // 아리안로드 2E 양식이면 툴 안 시트(스킬·장비·아이템까지)로, 아니면 예전처럼 요약만
+    const grid = await fetchSheetGridClient(user, id, { title: tab.trim() || undefined, gid: tab.trim() ? undefined : gid });
+    if (isGoogleArSheet(grid)) {
+      const r = fromGoogleSheetGrid(grid, tab.trim() || "시트 캐릭터");
+      await addArCharacter(cid, { ar: r.sheet, hp: { cur: r.hp, max: r.hp }, mp: { cur: r.mp, max: r.mp }, fate: { cur: r.fate, max: r.fate }, kind, ownerUid: owner, order: nextOrder });
+      setTab("");
+      return `${r.sheet.profile.name} 추가됨 (스킬 ${r.sheet.skills.length}개)`;
+    }
+    const sheet = await fetchSheet(user, id, tab.trim());
+    await addCharacter(cid, sheet, { kind, ownerUid: owner, order: nextOrder });
     setTab("");
     return `${sheet.name} 추가됨`;
   }

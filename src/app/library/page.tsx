@@ -88,7 +88,7 @@ export default function LibraryPage() {
           <span className="text-xs text-muted">{list?.length ?? 0}명</span>
           <div className="ml-auto flex flex-wrap gap-2">
             <button className="btn-primary" onClick={() => setImporting(true)}>
-              <span>Roll20에서 가져오기</span>
+              <span>가져오기 (구글 시트 · Roll20)</span>
             </button>
             {(["pc", "npc", "enemy"] as const).map((k) => (
               <button key={k} className="btn" onClick={() => create(k)}>
@@ -134,7 +134,7 @@ export default function LibraryPage() {
             <p className="font-display text-lg">보관함이 비어 있어요</p>
             <p className="mt-2 text-sm text-muted">Roll20에서 캐릭터를 한꺼번에 가져오거나, 새로 만들어 보세요.</p>
             <button className="btn-primary mt-4" onClick={() => setImporting(true)}>
-              <span>Roll20에서 가져오기</span>
+              <span>가져오기 (구글 시트 · Roll20)</span>
             </button>
           </div>
         )}
