@@ -9,7 +9,9 @@ import { roll } from "@/lib/dice";
 import { findCast, removeNpc, toggleCast } from "@/lib/scene";
 import { splitTitle } from "@/lib/stage";
 import type { Speaker } from "@/lib/types";
+import { readDiceColor } from "@/lib/diceColor";
 import { useContextMenu, type MenuItem } from "../ContextMenu";
+import { DiceColorButton } from "./DiceColorButton";
 import { CharacterEditDialog, NpcEditDialog } from "./EditDialogs";
 import { openSheet } from "./PartyBar";
 import { useSession } from "./SessionContext";
@@ -126,7 +128,7 @@ export function ChatInput() {
           const result = roll(cmd.expr, { check: cmd.check, label: cmd.label || undefined });
           await sendMessage(
             cid,
-            { ...base, kind: "roll", text: "", roll: result, secret: cmd.secret || undefined },
+            { ...base, kind: "roll", text: "", roll: result, secret: cmd.secret || undefined, diceColor: readDiceColor() },
             cmd.secret ? [campaign.gmUid] : undefined,
           );
           break;
@@ -250,6 +252,7 @@ export function ChatInput() {
         <button className="btn shrink-0 px-2.5" title="판정 굴림 입력" onClick={() => setText((t) => (t.startsWith("/") ? t : "/c 2D+"))}>
           <span>🎲</span>
         </button>
+        <DiceColorButton />
         <textarea
           className="input min-h-[40px] flex-1 resize-none"
           rows={1}

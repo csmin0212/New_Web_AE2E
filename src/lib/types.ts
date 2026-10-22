@@ -80,4 +80,5 @@ export type ChatMessage = {
   card?: ChatCard;
   to?: { uid: string; name: string }[]; // 귓속말 대상 (있으면 비공개)
   secret?: boolean; // GM에게만 보이는 굴림
+  diceColor?: string; // 굴린 사람이 고른 주사위 색 (없으면 테마 색)
 };

@@ -483,4 +483,109 @@ body {
     translate: -50% -42px;
   }
 }
+
+/* ── 주사위 굴림 카드 ──
+   --dc: 주사위 강조색. 굴린 사람이 고른 색이 있으면 그 색, 없으면 테마 강조색.
+   배경은 테마 패널색에 섞어 만들어서 밝은 테마·어두운 테마 어디서나 어울린다. */
+.roll,
+.card-roll {
+  --dc: var(--accent);
+}
+.roll {
+  display: inline-block;
+  min-width: 13rem;
+  margin-top: 4px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--dc) 35%, var(--line));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--dc) 9%, var(--panel)), var(--panel));
+}
+.roll--crit {
+  border-color: var(--crit);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--crit) 24%, var(--panel)), color-mix(in srgb, var(--crit) 7%, var(--panel)));
+  box-shadow: 0 0 16px color-mix(in srgb, var(--crit) 28%, transparent);
+}
+.roll--fumble {
+  border-color: var(--fumble);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--fumble) 22%, var(--panel)), color-mix(in srgb, var(--fumble) 6%, var(--panel)));
+}
+.die {
+  display: grid;
+  place-items: center;
+  height: 24px;
+  min-width: 24px;
+  padding: 0 4px;
+  border-radius: 5px;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid color-mix(in srgb, var(--dc) 55%, var(--line));
+  background: color-mix(in srgb, var(--dc) 15%, var(--panel));
+  color: color-mix(in srgb, var(--dc) 60%, var(--text));
+  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--dc) 22%, transparent);
+}
+.die--six {
+  border-color: var(--crit);
+  background: var(--crit);
+  color: #2a1d00;
+}
+.die--one {
+  border-color: var(--fumble);
+  background: color-mix(in srgb, var(--fumble) 80%, var(--panel));
+  color: #fff;
+}
+.roll-total {
+  font-size: 20px;
+  font-weight: 800;
+  color: color-mix(in srgb, var(--dc) 45%, var(--text));
+}
+.roll--crit .roll-total {
+  color: color-mix(in srgb, var(--crit) 75%, var(--text));
+}
+.roll--fumble .roll-total {
+  color: var(--fumble);
+}
+.card-roll__head {
+  background: color-mix(in srgb, var(--dc) 12%, var(--panel-2));
+}
+.roll-chip {
+  border-color: color-mix(in srgb, var(--dc) 60%, transparent);
+  background: color-mix(in srgb, var(--dc) 15%, var(--panel));
+  color: color-mix(in srgb, var(--dc) 70%, var(--text));
+}
+
+/* 테마마다 주사위 모양 */
+[data-skin="ornate"] .die {
+  box-shadow:
+    inset 0 0 0 2px color-mix(in srgb, var(--dc) 15%, var(--panel)),
+    inset 0 0 0 3px color-mix(in srgb, var(--dc) 45%, transparent);
+}
+[data-skin="harlequin"] .die,
+[data-skin="harlequin"] .roll {
+  border-radius: 2px;
+}
+[data-skin="slant"] .roll {
+  border-radius: 0;
+  border-width: 2px;
+}
+[data-skin="slant"] .die {
+  border-radius: 0;
+  transform: skewX(-8deg);
+}
+[data-skin="arcane"] .die {
+  border-radius: 999px;
+}
+[data-skin="arcane"] .roll {
+  border-radius: 14px;
+}
+[data-skin="hud"] .die {
+  border-radius: 6px;
+  box-shadow: 0 2px 0 color-mix(in srgb, var(--dc) 30%, transparent);
+}
+[data-skin="hud"] .roll {
+  border-left: 4px solid var(--dc);
+}
+[data-skin="hud"] .roll--crit {
+  border-left-color: var(--crit);
+}
 }

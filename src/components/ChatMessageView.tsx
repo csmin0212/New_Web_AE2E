@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import type { RollResult } from "@/lib/dice";
 import type { InlineResult, Segment } from "@/lib/inline";
 import { splitTitle } from "@/lib/stage";
@@ -89,9 +90,9 @@ function Body({ m }: { m: ChatMessage }) {
         <img src={m.text} alt="" className="mt-1 max-h-60 max-w-full rounded border border-line" loading="lazy" />
       );
     case "roll":
-      return m.roll ? <RollView r={m.roll} /> : null;
+      return m.roll ? <RollView r={m.roll} color={m.diceColor} /> : null;
     case "card":
-      return m.card ? <CardView card={m.card} /> : null;
+      return m.card ? <CardView card={m.card} color={m.diceColor} /> : null;
     case "system":
       return <p className="text-center text-xs text-muted">{m.text}</p>;
     default:
@@ -99,15 +100,12 @@ function Body({ m }: { m: ChatMessage }) {
   }
 }
 
-export function RollView({ r }: { r: RollResult }) {
+// 주사위 굴림 카드 — 색은 테마(globals.css 의 .roll·.die), 굴린 사람이 고른 색이 있으면 그 색으로
+export function RollView({ r, color }: { r: RollResult; color?: string }) {
   const crit = r.check?.critical;
   const fumble = r.check?.fumble;
   return (
-    <div
-      className={`mt-1 inline-block min-w-52 rounded-md border px-3 py-2 ${
-        crit ? "border-crit bg-[#2a2108]" : fumble ? "border-fumble bg-[#1d1324]" : "border-line bg-panel"
-      }`}
-    >
+    <div className={`roll ${crit ? "roll--crit" : fumble ? "roll--fumble" : ""}`} style={color ? ({ "--dc": color } as CSSProperties) : undefined}>
       <div className="flex items-center gap-2 text-xs text-muted">
         <span>{r.label || (r.check ? "판정" : "굴림")}</span>
         <span className="font-mono">{r.expr}</span>
@@ -118,13 +116,7 @@ export function RollView({ r }: { r: RollResult }) {
           g.results.map((v, i) => (
             <span
               key={`${gi}-${i}`}
-              className={`grid h-6 min-w-6 place-items-center rounded border px-1 font-mono text-xs ${
-                g.sides === 6 && v === 6 && r.check
-                  ? "border-crit text-crit"
-                  : g.sides === 6 && v === 1 && r.check
-                    ? "border-fumble text-fumble"
-                    : "border-line"
-              }`}
+              className={`die ${g.sides === 6 && v === 6 && r.check ? "die--six" : g.sides === 6 && v === 1 && r.check ? "die--one" : ""}`}
               title={g.sides === 6 ? "d6" : `d${g.sides}`}
             >
               {g.sign < 0 ? "-" : ""}
@@ -139,7 +131,7 @@ export function RollView({ r }: { r: RollResult }) {
           </span>
         )}
         <span className="mx-1 text-muted">=</span>
-        <span className={`text-xl font-bold ${crit ? "text-crit" : fumble ? "text-fumble" : "text-text"}`}>{r.total}</span>
+        <span className="roll-total">{r.total}</span>
         {crit && <span className="ml-1 rounded bg-crit px-1.5 text-xs font-bold text-black">크리티컬!</span>}
         {fumble && <span className="ml-1 rounded bg-fumble px-1.5 text-xs font-bold text-white">펌블</span>}
       </div>
@@ -148,10 +140,10 @@ export function RollView({ r }: { r: RollResult }) {
 }
 
 // 스킬·아이템 카드 — Roll20 스킬 템플릿처럼
-export function CardView({ card }: { card: ChatCard }) {
+export function CardView({ card, color }: { card: ChatCard; color?: string }) {
   return (
-    <div className="mt-1 max-w-md overflow-hidden rounded-md border border-line bg-panel">
-      <div className="border-b border-line bg-black/30 px-3 py-1.5">
+    <div className="card-roll mt-1 max-w-md overflow-hidden rounded-md border border-line bg-panel" style={color ? ({ "--dc": color } as CSSProperties) : undefined}>
+      <div className="card-roll__head border-b border-line px-3 py-1.5">
         <div className="text-[10px] tracking-widest text-muted">{card.tag === "skill" ? "SKILL" : card.tag === "item" ? "ITEM" : "ATTACK"}</div>
         <SkillName name={card.title} color={card.color} glow={card.glow} className="text-[15px]" />
       </div>
@@ -221,7 +213,7 @@ function RollChip({ r }: { r: InlineResult }) {
   const detail = (r.dice ?? []).map((d) => `[${(d.results ?? []).join(",")}]`).join(" ");
   return (
     <span
-      className="mx-0.5 inline-flex items-baseline gap-1 rounded border border-accent/60 bg-accent/15 px-1.5 font-bold text-accent"
+      className="roll-chip mx-0.5 inline-flex items-baseline gap-1 rounded border px-1.5 font-bold"
       title={`${r.expr} → ${detail || "주사위 없음"}`}
     >
       {r.total}

@@ -3,6 +3,7 @@
 import { parseCost } from "../battleRules";
 import { setGauge, updateAr, updateArWithSummary } from "../campaigns";
 import { sendMessage } from "../chat";
+import { readDiceColor } from "../diceColor";
 import { roll, type RollResult } from "../dice";
 import { evalExpr, rollInline } from "../inline";
 import type { Character, ChatCard, Speaker } from "../types";
@@ -35,7 +36,7 @@ export async function rollArCheck(
   if (fate > 0) await setGauge(ctx.cid, c.id, "fate", { ...c.fate, cur: c.fate.cur - fate });
   await sendMessage(
     ctx.cid,
-    { uid: ctx.uid, speaker: speakerOf(c, ctx.uid), kind: "roll", text: "", roll: result, secret: opts.secret || undefined },
+    { uid: ctx.uid, speaker: speakerOf(c, ctx.uid), kind: "roll", text: "", roll: result, secret: opts.secret || undefined, diceColor: readDiceColor() },
     opts.secret ? [ctx.gmUid] : undefined,
   );
   return result;
@@ -71,7 +72,7 @@ export async function applySkill(ctx: ActCtx, c: Character, skill: ArSkill): Pro
   };
   if (cost?.mp) await setGauge(ctx.cid, c.id, "mp", { ...c.mp, cur: c.mp.cur - cost.mp });
   if (cost?.hp) await setGauge(ctx.cid, c.id, "hp", { ...c.hp, cur: c.hp.cur - cost.hp });
-  await sendMessage(ctx.cid, { uid: ctx.uid, speaker: speakerOf(c, ctx.uid), kind: "card", text: "", card });
+  await sendMessage(ctx.cid, { uid: ctx.uid, speaker: speakerOf(c, ctx.uid), kind: "card", text: "", card, diceColor: readDiceColor() });
   return card;
 }
 
@@ -98,7 +99,7 @@ export async function applyItem(ctx: ActCtx, c: Character, item: ArItem) {
   const ar: ArSheet = { ...c.ar, items: c.ar.items.map((x) => (x.id === item.id ? { ...x, qty: x.qty - 1 } : x)) };
   await saveAr(ctx, c, ar);
   const card: ChatCard = { tag: "item", title: item.name, meta: ["아이템 사용"], body, note: notes.join(" · ") };
-  await sendMessage(ctx.cid, { uid: ctx.uid, speaker: speakerOf(c, ctx.uid), kind: "card", text: "", card });
+  await sendMessage(ctx.cid, { uid: ctx.uid, speaker: speakerOf(c, ctx.uid), kind: "card", text: "", card, diceColor: readDiceColor() });
 }
 
 export { saveAr };

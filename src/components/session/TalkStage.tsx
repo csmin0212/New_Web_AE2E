@@ -223,7 +223,7 @@ function RollPopups({ messages }: { messages: ChatMessage[] }) {
       {recent.slice(-3).map((m) => (
         <div key={m.id} className="stage__roll">
           <div className="mb-1 text-right text-xs font-bold text-white drop-shadow">{splitTitle(m.speaker.name).name}</div>
-          <RollView r={m.roll!} />
+          <RollView r={m.roll!} color={m.diceColor} />
         </div>
       ))}
     </div>
