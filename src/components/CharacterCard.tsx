@@ -1,5 +1,6 @@
 "use client";
 
+import { faceOf, stageImageOf } from "@/lib/characterArt";
 import type { User } from "firebase/auth";
 import { useState } from "react";
 import { fetchSheet, removeCharacter, resyncCharacter, setGauge, updateCharacter } from "@/lib/campaigns";
@@ -165,7 +166,7 @@ export function CharacterCard({
                 cid,
                 {
                   uid: user.uid,
-                  speaker: { name: s.name, uid: user.uid, charId: c.id, image: c.standing, avatar: c.portrait, color: c.color },
+                  speaker: { name: s.name, uid: user.uid, charId: c.id, image: stageImageOf(c), avatar: faceOf(c), color: c.color },
                   kind: "roll",
                   text: "",
                   roll: result,

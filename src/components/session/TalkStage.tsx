@@ -133,13 +133,20 @@ function ActorView({ actor, speaking, anyoneSpeaking }: { actor: Actor; speaking
   const back = anyoneSpeaking && !speaking;
   const shape = useImageShape(actor.image);
   const card = shape?.kind === "card";
+  const medal = shape?.kind === "token";
   return (
     <div
-      className={`stage__actor ${card ? "stage__actor--card" : ""} ${speaking ? "stage__actor--speaking" : ""} ${back ? "stage__actor--back" : ""}`}
+      className={`stage__actor ${card ? "stage__actor--card" : ""} ${medal ? "stage__actor--medal" : ""} ${speaking ? "stage__actor--speaking" : ""} ${back ? "stage__actor--back" : ""}`}
       style={{ left: `${actor.left}%`, visibility: actor.image && !shape ? "hidden" : undefined }}
     >
       {actor.image ? (
-        card ? (
+        medal ? (
+          // 동그란 토큰 그림 — 둥근 메달로 (스탠딩이 없을 때)
+          <div className="stage__medal">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={actor.image} alt={actor.name} draggable={false} />
+          </div>
+        ) : card ? (
           // 배경이 있는 그림 — 액자에 담는다 (너무 납작하거나 길쭉하면 잘라서 맞춘다)
           <div className="stage__card" style={{ aspectRatio: Math.min(1, Math.max(0.62, shape.ratio)) }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}

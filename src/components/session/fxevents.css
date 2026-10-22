@@ -403,6 +403,9 @@
 }
 .fxe--victory .fxe-big span,
 .fxe--levelup .fxe-big span {
+  /* 기울인 글자는 글자 상자 밖으로 삐져나와 잘린다 → 양옆에 여유를 주고 그만큼 당긴다 */
+  padding: 0 0.12em;
+  margin: 0 -0.12em;
   background: linear-gradient(180deg, #fff6d0, #ffd34d 45%, #c98a12);
   -webkit-background-clip: text;
   background-clip: text;

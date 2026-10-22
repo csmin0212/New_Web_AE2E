@@ -1,20 +1,24 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import { tokenImageOf } from "@/lib/characterArt";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent } from "react";
 import { setTurn } from "@/lib/battle";
 import { derive } from "@/lib/ar/derive";
 import { BAD_STATUS, CONDITION_LABEL, effectiveInit, endTurn, giveTurn, initiativeOrder, startBattle, type StatusMap } from "@/lib/battleRules";
 import { cellDistance, clearPointer, METERS_PER_CELL, setPointer, subscribePointers, type Cell, type Pointer } from "@/lib/pointer";
-import { moveToken, removeToken, setTokenStatus, updateToken, type Token } from "@/lib/scene";
+import { moveToken, removeToken, setTokenSize, setTokenStatus, updateToken, type Token } from "@/lib/scene";
 import { splitTitle } from "@/lib/stage";
 import type { Character, Gauge } from "@/lib/types";
 import { useContextMenu, type MenuItem } from "../ContextMenu";
+import { paintCells, terrainDefsOf } from "@/lib/battleMaps";
+import { canPlace, cellKey, TERRAIN_EFFECT_LABEL } from "@/lib/terrain";
 import { ActionDock } from "./ActionDock";
+import { TerrainPalette } from "./TerrainPalette";
 import { openSheet } from "./PartyBar";
 import { useSession } from "./SessionContext";
 
 type Unit = Token & { id: string; x: number; y: number; baseInit: number; character?: Character };
-type Tool = "move" | "ruler" | "ping";
+type Tool = "move" | "ruler" | "ping" | "paint";
 
 const SIDE_RING: Record<Token["side"], string> = {
   pc: "var(--accent)",
@@ -28,6 +32,7 @@ export function BattleStage() {
   const turn = battle.turn;
   const menu = useContextMenu();
   const [tool, setTool] = useState<Tool>("move");
+  const [brush, setBrush] = useState<string | null>("wall");
 
   const units: Unit[] = useMemo(
     () =>
@@ -88,6 +93,12 @@ export function BattleStage() {
     if (dockUnit && dockUnit.id !== u.id)
       items.push({ label: targetIds.includes(u.id) ? "대상에서 빼기" : "대상으로 지정", icon: "◎", onSelect: () => toggleTarget(u.id) });
     if (canControl(u)) {
+      const size = u.size ?? 1;
+      items.push({ title: "토큰 크기" });
+      for (const n of [1, 2, 3, 4]) {
+        items.push({ label: `${n}×${n} 칸`, icon: size === n ? "✓" : "", onSelect: () => setTokenSize(cid, u.id, n) });
+      }
+      items.push("sep");
       const on = Object.keys(u.status ?? {}).length;
       items.push({ label: "상태 이상…", hint: on ? `${on}개` : undefined, icon: "☠", onSelect: () => menu.open(e, statusMenu(u)) });
     }
@@ -199,6 +210,7 @@ export function BattleStage() {
                 ["move", "✋", "이동 — 토큰 끌어 옮기기"],
                 ["ruler", "📏", "자 — 끌어서 거리 재기 (모두에게 보임)"],
                 ["ping", "📍", "핑 — 눌러서 모두에게 위치 알리기 (Alt+클릭도 됨)"],
+                ...(isGM ? ([["paint", "🖌", "지형 칠하기 — 벽·험지·피해 지형 (GM)"]] as const) : []),
               ] as const
             ).map(([t, icon, hint]) => (
               <button key={t} className={`px-2.5 py-1.5 ${tool === t ? "bg-accent text-accent-ink" : "hover:bg-panel-2"}`} title={hint} onClick={() => setTool(t)}>
@@ -206,8 +218,10 @@ export function BattleStage() {
               </button>
             ))}
           </div>
+          {tool === "paint" && isGM && <TerrainPalette brush={brush} onBrush={setBrush} />}
           <Grid
             tool={tool}
+            brush={brush}
             units={units}
             currentId={turn.actor ?? undefined}
             targetIds={targetIds}
@@ -241,6 +255,7 @@ export function BattleStage() {
 
 function Grid({
   tool,
+  brush,
   units,
   currentId,
   targetIds,
@@ -259,10 +274,14 @@ function Grid({
   onPick: (u: Unit) => void;
   onMenu: (e: MouseEvent, u: Unit) => void;
   tool: Tool;
+  brush: string | null;
 }) {
   const { battle, isGM, cid, user, members } = useSession();
   const myName = members.find((m) => m.uid === user.uid)?.name ?? user.displayName ?? "누군가";
   const { cols, rows, background } = battle.meta;
+  const terrain = battle.terrain;
+  const defs = terrainDefsOf(battle);
+  const [painting, setPainting] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const movedRef = useRef(false); // 끌어서 옮긴 직후의 click 은 대상 지정으로 치지 않는다
@@ -318,7 +337,11 @@ function Grid({
     const move = (e: PointerEvent) => setDrag((d) => (d ? { ...d, to: cellAt(e.clientX, e.clientY) } : d));
     const up = (e: PointerEvent) => {
       const d = dragRef.current;
-      const to = d ? cellAt(e.clientX, e.clientY) : null;
+      const size = d ? (units.find((u) => u.id === d.id)?.size ?? 1) : 1;
+      const raw = d ? cellAt(e.clientX, e.clientY) : null;
+      const to0 = raw ? { x: Math.min(raw.x, cols - size), y: Math.min(raw.y, rows - size) } : null;
+      // 벽(진입 불가) 칸에는 놓지 않는다
+      const to = to0 && canPlace(to0, size, battle.terrain, terrainDefsOf(battle)) ? to0 : null;
       const moved = !!(d && to && (to.x !== d.from.x || to.y !== d.from.y));
       movedRef.current = moved;
       if (moved) onMove(d!.id, to!);
@@ -339,6 +362,7 @@ function Grid({
   const dragUnit = drag ? units.find((u) => u.id === drag.id) : undefined;
   const moveCells = dragUnit?.character?.ar ? Math.floor(derive(dragUnit.character.ar).move / METERS_PER_CELL) : null;
   const over = moveCells != null && dist > moveCells;
+  const dragSize = dragUnit?.size ?? 1;
 
   // ── 자·핑 (다른 사람 것은 Realtime DB 로 받는다) ──
   const [pointers, setPointers] = useState<Record<string, Pointer>>({});
@@ -346,11 +370,14 @@ function Grid({
   const [ruler, setRuler] = useState<{ from: Cell; to: Cell } | null>(null);
   const sentAt = useRef(0);
   const clearTimer = useRef<number | null>(null);
+  // 오래된 자·핑을 걸러 내는 시계 — 손짓이 있을 때만 돈다 (평소에 그리드를 다시 그리지 않게)
   const [now, setNow] = useState(() => Date.now());
+  const anyPointer = Object.keys(pointers).length > 0;
   useEffect(() => {
+    if (!anyPointer) return;
     const t = window.setInterval(() => setNow(Date.now()), 2000);
     return () => clearInterval(t);
-  }, []);
+  }, [anyPointer]);
 
   function share(p: Omit<Pointer, "at" | "name">, force = false) {
     const t = Date.now();
@@ -410,6 +437,12 @@ function Grid({
         onPointerDown={(e) => {
           if (e.button !== 0) return;
           const at = cellAt(e.clientX, e.clientY);
+          if (tool === "paint") {
+            e.preventDefault();
+            setPainting(true);
+            paintCells(cid, [cellKey(at.x, at.y)], brush).catch(() => {});
+            return;
+          }
           if (e.altKey || tool === "ping") {
             e.preventDefault();
             ping(at);
@@ -419,6 +452,13 @@ function Grid({
             setRuler({ from: at, to: at });
           }
         }}
+        onPointerMove={(e) => {
+          if (!painting || tool !== "paint") return;
+          const at = cellAt(e.clientX, e.clientY);
+          if ((terrain[cellKey(at.x, at.y)] ?? null) !== brush) paintCells(cid, [cellKey(at.x, at.y)], brush).catch(() => {});
+        }}
+        onPointerUp={() => setPainting(false)}
+        onPointerLeave={() => setPainting(false)}
         style={{
           width: cols * cell,
           height: rows * cell,
@@ -441,6 +481,23 @@ function Grid({
             backgroundPosition: "0 0, 0 0, -1px 0, 0 -1px",
           }}
         />
+        {/* 지형 (맵 기믹) */}
+        {Object.entries(terrain).map(([k, id]) => {
+          const d = defs[id];
+          const m = k.match(/^(\d+)_(\d+)$/);
+          if (!d || !m) return null;
+          const x = +m[1];
+          const y = +m[2];
+          if (x >= cols || y >= rows) return null;
+          return (
+            <div
+              key={k}
+              className={`terrain-cell terrain-cell--${d.effect} ${tool === "paint" ? "pointer-events-none" : ""}`}
+              style={{ left: x * cell, top: y * cell, width: cell, height: cell, "--tc": d.color } as CSSProperties}
+              title={`${d.name} · ${TERRAIN_EFFECT_LABEL[d.effect]}${d.amount ? ` ${d.amount}` : ""}${d.note ? `\n${d.note}` : ""}`}
+            />
+          );
+        })}
         {/* 이동할 수 있는 범위 */}
         {drag && moveCells != null && (
           <div
@@ -483,7 +540,7 @@ function Grid({
             <span
               key={p.id}
               className={`dmg-pop pointer-events-none absolute z-30 ${p.v < 0 ? "dmg-pop--hurt" : "dmg-pop--heal"}`}
-              style={{ left: u.x * cell + cell / 2, top: u.y * cell }}
+              style={{ left: u.x * cell + ((u.size ?? 1) * cell) / 2, top: u.y * cell }}
               onAnimationEnd={() => setPops((l) => l.filter((x) => x.id !== p.id))}
             >
               {p.v > 0 ? `+${p.v}` : p.v}
@@ -503,14 +560,18 @@ function Grid({
           <>
             <div
               className="pointer-events-none absolute border-2 border-dashed border-accent/70"
-              style={{ left: drag.from.x * cell, top: drag.from.y * cell, width: cell, height: cell }}
+              style={{ left: drag.from.x * cell, top: drag.from.y * cell, width: dragSize * cell, height: dragSize * cell }}
             />
             <div
               className="pointer-events-none absolute grid place-items-center bg-accent/25 ring-2 ring-accent"
-              style={{ left: drag.to.x * cell, top: drag.to.y * cell, width: cell, height: cell }}
+              style={{ left: drag.to.x * cell, top: drag.to.y * cell, width: dragSize * cell, height: dragSize * cell }}
             >
               <span className={`rounded px-1.5 text-[11px] font-bold whitespace-nowrap text-white ${over ? "bg-hp" : "bg-black/80"}`}>
                 {dist}칸 · {dist * METERS_PER_CELL}m{moveCells != null && ` / 이동 ${moveCells}칸`}
+                {(() => {
+                  const d = defs[terrain[cellKey(drag.to.x, drag.to.y)]];
+                  return d ? ` · ${d.name}${d.effect === "block" ? " (못 감)" : ""}` : "";
+                })()}
               </span>
             </div>
           </>
@@ -521,13 +582,16 @@ function Grid({
           const targeted = targetIds.includes(u.id);
           // 플레이어에게는 에너미 시트가 오지 않으므로 HP 막대 대신 상태만
           const hp = u.character?.hp ?? (isGM ? u.hp : undefined);
+          const enemy = u.side === "enemy" || u.character?.kind === "enemy";
+          const size = u.size ?? 1;
+          const box = size * cell;
           return (
             <div
               key={u.id}
               className={`absolute flex flex-col items-center transition-[left,top] duration-200 ${
                 movable ? "cursor-grab active:cursor-grabbing" : picking ? "cursor-crosshair" : ""
               } ${drag?.id === u.id ? "z-20 opacity-90" : "z-10"} ${u.cond === "down" ? "grayscale" : ""}`}
-              style={{ left: at.x * cell, top: at.y * cell, width: cell, height: cell, touchAction: "none" }}
+              style={{ left: at.x * cell, top: at.y * cell, width: box, height: box, touchAction: "none" }}
               onPointerDown={(e) => {
                 movedRef.current = false;
                 if (!movable || e.button !== 0) return;
@@ -541,10 +605,9 @@ function Grid({
               onContextMenu={(e) => onMenu(e, u)}
               title={picking ? `${u.name} — 눌러서 대상 지정` : u.name}
             >
-              <TokenFace unit={u} size={cell - 6} active={currentId === u.id} />
+              <TokenFace unit={u} size={box - 6} active={currentId === u.id} />
               <StatusDots status={u.status} />
               {targeted && <span className="target-ring pointer-events-none absolute inset-[-3px] rounded-full" />}
-              <HpBar gauge={hp} width={cell - 8} />
               {u.cond && (
                 <span
                   className={`pointer-events-none absolute -top-1.5 -right-2 rounded-sm px-1 text-[9px] leading-[13px] font-bold whitespace-nowrap ${
@@ -554,11 +617,15 @@ function Grid({
                   {CONDITION_LABEL[u.cond]}
                 </span>
               )}
-              {cell >= 34 && (
-                <span className="pointer-events-none absolute top-full mt-1 max-w-[140%] truncate rounded-sm bg-black/75 px-1 text-[10px] leading-4 text-white">
-                  {splitTitle(u.name).name}
-                </span>
-              )}
+              {/* 발밑: HP·MP 막대, 페이트 점, 이름 — 에너미는 HP 만 (그것도 GM 화면에만) */}
+              <div className="pointer-events-none absolute top-full -mt-1 flex flex-col items-center gap-px" style={{ width: Math.max(cell - 6, box - 10) }}>
+                <TokenBar g={hp} color="bg-hp" />
+                {!enemy && <TokenBar g={u.character?.mp} color="bg-mp" />}
+                {!enemy && <FatePips g={u.character?.fate} />}
+                {cell >= 34 && (
+                  <span className="mt-0.5 max-w-[150%] truncate rounded-sm bg-black/75 px-1 text-[10px] leading-4 text-white">{splitTitle(u.name).name}</span>
+                )}
+              </div>
             </div>
           );
         })}
@@ -568,7 +635,7 @@ function Grid({
 }
 
 function TokenFace({ unit, size, active }: { unit: Unit; size: number; active?: boolean }) {
-  const img = unit.image ?? unit.character?.token ?? unit.character?.portrait ?? unit.character?.standing;
+  const img = unit.image ?? (unit.character ? tokenImageOf(unit.character) : undefined);
   return (
     <div
       className="relative shrink-0 overflow-hidden rounded-full bg-panel-2"
@@ -611,12 +678,24 @@ function StatusDots({ status }: { status?: StatusMap }) {
   );
 }
 
-function HpBar({ gauge, width }: { gauge?: Gauge; width: number }) {
-  if (!gauge || gauge.max <= 0) return null;
-  const pct = Math.max(0, Math.min(100, (gauge.cur / gauge.max) * 100));
+function TokenBar({ g, color }: { g?: Gauge; color: string }) {
+  if (!g || g.max <= 0) return null;
+  const pct = Math.max(0, Math.min(100, (g.cur / g.max) * 100));
   return (
-    <div className="pointer-events-none absolute -bottom-0.5 h-1.5 overflow-hidden rounded-full bg-black/70" style={{ width }}>
-      <div className="h-full bg-hp" style={{ width: `${pct}%` }} />
+    <div className="h-1.5 w-full overflow-hidden rounded-full bg-black/70 ring-1 ring-black/40" title={`${g.cur}/${g.max}`}>
+      <div className={`h-full ${color} transition-[width] duration-300`} style={{ width: `${pct}%` }} />
+    </div>
+  );
+}
+
+// 페이트 남은 개수 — 작은 금색 점
+function FatePips({ g }: { g?: Gauge }) {
+  if (!g || g.max <= 0) return null;
+  return (
+    <div className="flex gap-px" title={`페이트 ${g.cur}/${g.max}`}>
+      {Array.from({ length: Math.min(g.max, 10) }, (_, i) => (
+        <span key={i} className={`h-1.5 w-1.5 rounded-full ring-1 ring-black/50 ${i < g.cur ? "bg-fate" : "bg-black/50"}`} />
+      ))}
     </div>
   );
 }
@@ -643,6 +722,7 @@ function UnitCards({ units, currentId, onMenu }: { units: Unit[]; currentId?: st
               <div className="truncate font-bold">{splitTitle(u.name).name}</div>
               {hp && <MiniGauge label="HP" g={hp} color="bg-hp" />}
               {mp && mp.max > 0 && <MiniGauge label="MP" g={mp} color="bg-mp" />}
+              {u.character && u.character.kind !== "enemy" && u.character.fate.max > 0 && <MiniGauge label="FT" g={u.character.fate} color="bg-fate" />}
               {u.status && Object.keys(u.status).length > 0 && (
                 <div className="mt-0.5 flex flex-wrap gap-0.5">
                   {BAD_STATUS.filter((b) => u.status![b.id]).map((b) => (

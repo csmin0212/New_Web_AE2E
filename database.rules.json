@@ -63,6 +63,10 @@
               "$bs": {
                 ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 20"
               }
+            },
+            "size": {
+              ".write": "auth != null && root.child('battle').child($cid).child('tokens').child($tid).child('ownerUid').val() === auth.uid",
+              ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 1 && newData.val() <= 8)"
             }
           }
         },
@@ -82,6 +86,12 @@
             ".write": "auth != null && ((!data.exists() && root.child('members').child($cid).child(auth.uid).exists() && newData.child('uid').val() === auth.uid) || (!newData.exists() && root.child('gm').child($cid).val() === auth.uid))",
             ".validate": "!newData.exists() || (newData.hasChildren(['uid', 'kind', 'amount', 'targets', 'at']) && newData.child('amount').isNumber() && newData.child('amount').val() >= 0 && newData.child('amount').val() <= 9999)"
           }
+        },
+        "terrain": {
+          ".write": "auth != null && root.child('gm').child($cid).val() === auth.uid"
+        },
+        "terrainDefs": {
+          ".write": "auth != null && root.child('gm').child($cid).val() === auth.uid"
         }
       }
     },
@@ -103,6 +113,12 @@
             }
           }
         }
+      }
+    },
+    "gmdata": {
+      "$cid": {
+        ".read": "auth != null && root.child('gm').child($cid).val() === auth.uid",
+        ".write": "auth != null && root.child('gm').child($cid).val() === auth.uid"
       }
     }
   }

@@ -1,6 +1,7 @@
 "use client";
 
 import { parseCost } from "../battleRules";
+import { faceOf, stageImageOf } from "../characterArt";
 import { setGauge, updateAr, updateArWithSummary } from "../campaigns";
 import { sendMessage } from "../chat";
 import { readDiceColor } from "../diceColor";
@@ -15,7 +16,7 @@ import type { ArItem, ArSheet, ArSkill, DiceMod } from "./types";
 export type ActCtx = { cid: string; uid: string; isGM: boolean; gmUid: string };
 
 export function speakerOf(c: Character, uid: string): Speaker {
-  return { name: c.sheet.name, uid, charId: c.id, image: c.standing, avatar: c.portrait, color: c.color };
+  return { name: c.sheet.name, uid, charId: c.id, image: stageImageOf(c), avatar: faceOf(c), color: c.color };
 }
 
 async function saveAr(ctx: ActCtx, c: Character, ar: ArSheet) {

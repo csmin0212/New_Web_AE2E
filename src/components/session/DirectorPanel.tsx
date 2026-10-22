@@ -1,5 +1,6 @@
 "use client";
 
+import { stageImageOf } from "@/lib/characterArt";
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import {
@@ -26,6 +27,7 @@ import { splitTitle } from "@/lib/stage";
 import { THEMES } from "@/lib/themes";
 import { SheetImport } from "../SheetImport";
 import { AnimationsSection } from "./AnimationsSection";
+import { BattleMapsBlock } from "./BattleMapsBlock";
 import { CutinsSection, ScenesSection } from "./FxSections";
 import { ResizeHandle, useResizable } from "./Resizable";
 import { useSession } from "./SessionContext";
@@ -53,7 +55,7 @@ export function DirectorPanel({ onClose }: { onClose: () => void }) {
   const width = useResizable("director", 400, 320, 720);
   return (
     <aside
-      className="absolute inset-y-0 left-0 z-40 flex max-w-full flex-col border-r border-line bg-panel/97 shadow-2xl backdrop-blur animate-rise-in"
+      className="absolute inset-y-0 left-0 z-40 flex max-w-full flex-col border-r border-line bg-panel shadow-2xl animate-rise-in"
       style={{ width: width.size }}
     >
       <ResizeHandle side="right" label="연출 패널" {...width} />
@@ -213,7 +215,7 @@ function CastSection() {
   function add() {
     if (pick.startsWith("char:")) {
       const c = characters.find((x) => x.id === pick.slice(5));
-      if (c) addCast(cid, { name: c.sheet.name, image: c.standing, charId: c.id, slot: nextSlot });
+      if (c) addCast(cid, { name: c.sheet.name, image: stageImageOf(c), charId: c.id, slot: nextSlot });
     } else if (pick.startsWith("npc:")) {
       const n = scene.npcs[pick.slice(4)];
       if (n) addCast(cid, { name: n.name, image: n.image, slot: nextSlot });
@@ -245,7 +247,7 @@ function CastSection() {
           {characters.map((c) => (
             <option key={c.id} value={`char:${c.id}`}>
               {c.sheet.name}
-              {c.standing ? "" : " (그림 없음)"}
+              {stageImageOf(c) ? "" : " (그림 없음)"}
             </option>
           ))}
           {Object.entries(scene.npcs).map(([k, n]) => (
@@ -405,6 +407,7 @@ function BattleSection() {
         </button>
       </div>
       <p className="mt-1 text-[11px] text-muted">행동치는 【민첩】+【감지】로 넣어요. 장비·스킬 보정은 위에서 고쳐 주세요.</p>
+      <BattleMapsBlock />
 
       <form
         className="mt-3 space-y-1 rounded border border-dashed border-line p-2"

@@ -1,5 +1,6 @@
 "use client";
 
+import { faceOf, stageImageOf } from "@/lib/characterArt";
 import { useEffect, useState, type MouseEvent } from "react";
 import { removeCharacter, updateCharacter } from "@/lib/campaigns";
 import { findCast, toggleCast } from "@/lib/scene";
@@ -42,7 +43,7 @@ export function PartyBar() {
     ];
     if (canEdit) items.push({ label: "고치기", hint: "그림·색·이름", icon: "✎", onSelect: () => setEditId(c.id) });
     if (isGM) {
-      const who = { charId: c.id, name: c.sheet.name, image: c.standing };
+      const who = { charId: c.id, name: c.sheet.name, image: stageImageOf(c) };
       const on = !!findCast(scene, who);
       items.push({ label: on ? "무대에서 내리기" : "무대에 계속 세우기", icon: on ? "▼" : "▲", onSelect: () => toggleCast(cid, scene, who) });
       items.push("sep", { title: "종류 바꾸기" });
@@ -127,7 +128,7 @@ function PartyChip({
   onClick: () => void;
   onMenu: (e: MouseEvent) => void;
 }) {
-  const face = c.portrait ?? c.standing;
+  const face = faceOf(c);
   return (
     <button
       onClick={onClick}

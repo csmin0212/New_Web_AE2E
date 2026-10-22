@@ -40,9 +40,9 @@ export function GmAutomation() {
     const prev = seenRound.current;
     seenRound.current = round;
     if (prev != null && round > prev) {
-      runCleanup({ cid, uid: user.uid, gmUid: campaign.gmUid }, round, battle.tokens).catch((e) => console.error("클린업 실패", e));
+      runCleanup({ cid, uid: user.uid, gmUid: campaign.gmUid }, round, battle).catch((e) => console.error("클린업 실패", e));
     }
-    // battle.tokens 는 라운드가 바뀐 순간의 것만 쓴다
+    // battle 은 라운드가 바뀐 순간의 것만 쓴다
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [round, loaded, cid, user.uid, campaign.gmUid]);
   useEffect(() => {

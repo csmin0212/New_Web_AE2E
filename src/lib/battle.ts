@@ -18,6 +18,8 @@ import {
   type TurnState,
 } from "./battleRules";
 import { sendMessage } from "./chat";
+import type { Battle } from "./scene";
+import { DEFAULT_TERRAINS, terrainEffectAt } from "./terrain";
 import { db, rtdb } from "./firebase";
 import type { Character } from "./types";
 
@@ -166,11 +168,27 @@ export function syncConditions(cid: string, tokens: Record<string, { charId?: st
 export async function runCleanup(
   ctx: { cid: string; uid: string; gmUid: string },
   round: number,
-  tokens: Record<string, { name: string; charId?: string; status?: StatusMap }>,
+  b: Pick<Battle, "tokens" | "pos" | "terrain" | "terrainDefs">,
 ) {
+  const tokens = b.tokens;
+  const defs = Object.keys(b.terrainDefs).length ? b.terrainDefs : DEFAULT_TERRAINS;
   const claim = await runTransaction(ref(rtdb, `battle/${ctx.cid}/meta/cleanedRound`), (cur) => ((cur ?? 0) >= round ? undefined : round));
   if (!claim.committed) return;
   const lines: string[] = [];
+  // 맵 기믹: 피해·회복 지형 위에 선 유닛
+  for (const [tid, t] of Object.entries(tokens)) {
+    const pos = b.pos[tid];
+    if (!pos || !t.charId) continue;
+    const fx = terrainEffectAt(pos, t.size ?? 1, b.terrain, defs);
+    if (fx)
+      await applyAndReport(ctx, { tid, charId: t.charId, name: t.name }, {
+        kind: fx.kind === "damage" ? "damage" : "heal",
+        amount: fx.amount,
+        dmgType: fx.kind === "damage" ? "pierce" : undefined,
+        from: fx.name,
+        source: "지형",
+      });
+  }
   for (const [tid, t] of Object.entries(tokens)) {
     if (!t.status) continue;
     const { next, poison } = cleanup(t.status);

@@ -109,7 +109,8 @@ export async function importCandidates(
     onProgress?.(i, list.length, c.data.name);
     const portrait = await copy(c.avatar, c.data.name);
     const token = c.tokenImage && c.tokenImage !== c.avatar ? await copy(c.tokenImage, c.data.name) : portrait;
-    const data = { ...c.data, portrait, standing: c.data.standing ?? portrait, token };
+    // 스탠딩은 따로 넣게 둔다 (동그란 토큰이 대화 무대에 그대로 올라가지 않게)
+    const data = { ...c.data, portrait, standing: c.data.standing, token };
     if (c.existingId && opts.overwrite) {
       // 직접 고친 태그·그림은 살리고 시트 내용만 새로
       await patchEntry(user.uid, c.existingId, { ar: data.ar, hp: data.hp, mp: data.mp, fate: data.fate, name: data.name, kind: data.kind, portrait: data.portrait, token: data.token });

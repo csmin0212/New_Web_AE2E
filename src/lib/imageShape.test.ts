@@ -7,7 +7,7 @@ describe("그림 모양 가르기", () => {
   });
   it("배경이 꽉 찬 그림, 정사각 얼굴, 둥근 토큰은 액자", () => {
     expect(classify(0.45, 0, "a.png").kind).toBe("card"); // 배경 있는 세로 그림
-    expect(classify(1, 0.6, "token.png").kind).toBe("card"); // 둥근 토큰 (모서리는 투명하지만 정사각)
+    expect(classify(1, 0.6, "token.png").kind).toBe("token"); // 둥근 토큰 (모서리가 투명한 정사각) → 메달
     expect(classify(1.5, 0, "cg.jpg").kind).toBe("card");
   });
   it("픽셀을 못 읽으면 확장자로 짐작", () => {

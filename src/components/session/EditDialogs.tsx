@@ -100,10 +100,25 @@ export function CharacterEditDialog({ character: c, onClose }: { character: Char
           </label>
         )}
         <div className="grid grid-cols-3 gap-2">
-          <ImageDrop user={user} kind="portrait" label="얼굴" value={portrait} onChange={setPortrait} />
-          <ImageDrop user={user} kind="standing" label="스탠딩" value={standing} onChange={setStanding} aspect="aspect-[3/4]" />
-          <ImageDrop user={user} kind="token" label="토큰" value={token} onChange={setToken} />
+          <div>
+            <ImageDrop user={user} kind="standing" label="스탠딩 (대화 무대)" value={standing} onChange={setStanding} aspect="aspect-[3/4]" />
+            <p className="mt-0.5 text-[10px] leading-tight text-muted">배경 없는 전신·반신 PNG면 무대에 크게 서요</p>
+          </div>
+          <div>
+            <ImageDrop user={user} kind="token" label="토큰 (전투 말)" value={token} onChange={setToken} />
+            <p className="mt-0.5 text-[10px] leading-tight text-muted">동그란 말 그림</p>
+          </div>
+          <div>
+            <ImageDrop user={user} kind="portrait" label="얼굴 (채팅 아이콘)" value={portrait} onChange={setPortrait} />
+            <p className="mt-0.5 text-[10px] leading-tight text-muted">비우면 토큰을 써요</p>
+          </div>
         </div>
+        {standing && (standing === token || standing === portrait) && (
+          <p className="rounded border border-accent/40 bg-accent/10 px-2 py-1 text-xs">
+            지금 스탠딩이 {standing === token ? "토큰" : "얼굴"} 그림과 같아요. 배경 없는 스탠딩을 따로 넣으면 대화 무대에서 크게 서고, 비워 두면 토큰을 둥근 메달로 보여 줘요.
+          </p>
+        )}
+        {!standing && <p className="text-[11px] text-muted">스탠딩이 없으면 대화 무대에 토큰(또는 얼굴) 그림을 둥근 메달·액자로 보여 줘요.</p>}
         <label className="flex items-center gap-2">
           <span className="text-xs text-muted">이름표 색</span>
           <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-7 w-10 cursor-pointer bg-transparent" />

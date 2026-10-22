@@ -4,10 +4,11 @@ import { useEffect, useState } from "react";
 
 // 그림이 "배경을 오려 낸 세로 스탠딩"인지, "배경이 있는 그림·정사각 얼굴·둥근 토큰"인지 가른다.
 //   sprite: 가장자리가 투명하고 세로로 긴 그림 → 무대에 크게 세운다
+//   token:  가장자리가 투명한 정사각형 (동그란 토큰) → 둥근 메달로 작게
 //   card:   그 밖 → 액자에 담아 작게 세운다 (배경째 거대하게 서 있으면 어색하다)
 // 다른 사이트 그림이라 픽셀을 못 읽으면 확장자와 비율로 짐작한다.
 
-export type ImageShape = { kind: "sprite" | "card"; ratio: number };
+export type ImageShape = { kind: "sprite" | "token" | "card"; ratio: number };
 
 const cache = new Map<string, Promise<ImageShape>>();
 const done = new Map<string, ImageShape>();
@@ -42,8 +43,11 @@ export function borderTransparency(data: Uint8ClampedArray, size: number): numbe
 
 export function classify(ratio: number, transparentBorder: number | null, url: string): ImageShape {
   const tall = ratio < 0.85;
+  const square = ratio >= 0.85 && ratio <= 1.2;
   const cutout = transparentBorder != null ? transparentBorder > 0.3 : /\.(png|webp)(\?|$)/i.test(url);
-  return { kind: tall && cutout ? "sprite" : "card", ratio };
+  if (tall && cutout) return { kind: "sprite", ratio };
+  if (square && transparentBorder != null && transparentBorder > 0.3) return { kind: "token", ratio };
+  return { kind: "card", ratio };
 }
 
 async function detect(url: string): Promise<ImageShape> {

@@ -3,6 +3,7 @@
 import { onValue, push, ref, remove, serverTimestamp, set, update } from "firebase/database";
 import { rtdb } from "./firebase";
 import type { StatusMap, TurnState } from "./battleRules";
+import type { TerrainDef } from "./terrain";
 import type { CutinPreset, ScenePreset, TransitionState } from "./fx";
 import type { ThemeId } from "./themes";
 
@@ -77,6 +78,7 @@ export type Token = {
   hp?: { cur: number; max: number }; // 예전 시트 없는 에너미 (GM 화면에만 보인다)
   cond?: "hurt" | "down"; // 에너미 상태 — 숫자 대신 플레이어에게 보여 준다 (GM 화면이 갱신)
   status?: StatusMap; // 배드 스테이터스 (GM 또는 토큰 주인이 붙이고 뗀다)
+  size?: number; // 차지하는 칸 (1 = 1×1, 2 = 2×2 …) — GM 또는 토큰 주인
 };
 export type BattleMeta = { cols: number; rows: number; background: string | null; round: number; turn: number };
 export type Battle = {
@@ -84,6 +86,8 @@ export type Battle = {
   tokens: Record<string, Token>;
   pos: Record<string, { x: number; y: number }>;
   turn: TurnState;
+  terrain: Record<string, string>; // "x_y" → 지형 id (맵 기믹)
+  terrainDefs: Record<string, TerrainDef>; // 비어 있으면 기본 지형
   loaded?: boolean; // 서버 값을 한 번이라도 받았는지 (기본값과 구분)
 };
 
@@ -92,6 +96,8 @@ export const DEFAULT_BATTLE: Battle = {
   tokens: {},
   pos: {},
   turn: { actor: null, round: 1, acted: {} },
+  terrain: {},
+  terrainDefs: {},
 };
 
 // Realtime DB 는 undefined 를 거부한다
@@ -157,6 +163,8 @@ export function subscribeBattle(cid: string, cb: (b: Battle) => void) {
       tokens: v.tokens ?? {},
       pos: v.pos ?? {},
       turn: { actor: v.turn?.actor ?? null, round: v.turn?.round ?? meta.round, acted: v.turn?.acted ?? {} },
+      terrain: v.terrain ?? {},
+      terrainDefs: v.terrainDefs ?? {},
       loaded: true,
     });
   });
@@ -181,6 +189,10 @@ export function updateToken(cid: string, key: string, patch: Partial<Token>) {
 
 export function setTokenStatus(cid: string, key: string, status: StatusMap) {
   return set(ref(rtdb, `battle/${cid}/tokens/${key}/status`), Object.keys(status).length ? status : null);
+}
+
+export function setTokenSize(cid: string, key: string, size: number) {
+  return set(ref(rtdb, `battle/${cid}/tokens/${key}/size`), size > 1 ? size : null);
 }
 
 export function removeToken(cid: string, key: string) {

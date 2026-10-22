@@ -9,6 +9,7 @@ import { roll } from "@/lib/dice";
 import { findCast, removeNpc, toggleCast } from "@/lib/scene";
 import { splitTitle } from "@/lib/stage";
 import type { Speaker } from "@/lib/types";
+import { faceOf, stageImageOf } from "@/lib/characterArt";
 import { readDiceColor } from "@/lib/diceColor";
 import { useContextMenu, type MenuItem } from "../ContextMenu";
 import { DiceColorButton } from "./DiceColorButton";
@@ -61,8 +62,8 @@ export function ChatInput() {
       if (!isGM && c.ownerUid !== user.uid) continue;
       opts.push({
         key: `char:${c.id}`,
-        face: c.portrait ?? c.standing,
-        speaker: { name: c.sheet.name, uid: user.uid, charId: c.id, image: c.standing, avatar: c.portrait, color: c.color },
+        face: faceOf(c),
+        speaker: { name: c.sheet.name, uid: user.uid, charId: c.id, image: stageImageOf(c), avatar: faceOf(c), color: c.color },
       });
     }
     if (isGM) {

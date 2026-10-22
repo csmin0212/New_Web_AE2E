@@ -588,4 +588,46 @@ body {
 [data-skin="hud"] .roll--crit {
   border-left-color: var(--crit);
 }
+
+/* 굴림 결과를 눌렀을 때 펼쳐지는 주사위 */
+.roll-pop {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 4px);
+  z-index: 40;
+  display: block;
+  min-width: 9rem;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--dc, var(--accent)) 45%, var(--line));
+  background: var(--panel);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+  font-weight: 400;
+  white-space: normal;
+  animation: rise-in 0.15s ease-out both;
+}
+
+/* 맵 기믹 지형 칸 — --tc: 지형 색. 효과마다 무늬가 달라서 색만 보지 않아도 구분된다 */
+.terrain-cell {
+  position: absolute;
+  z-index: 1;
+  background: color-mix(in srgb, var(--tc) 38%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tc) 70%, transparent);
+}
+.terrain-cell--block {
+  background:
+    repeating-linear-gradient(45deg, color-mix(in srgb, var(--tc) 85%, #000) 0 6px, color-mix(in srgb, var(--tc) 60%, #000) 6px 12px);
+}
+.terrain-cell--slow {
+  background:
+    radial-gradient(circle, color-mix(in srgb, var(--tc) 80%, #000) 1.5px, transparent 2px) 0 0 / 8px 8px,
+    color-mix(in srgb, var(--tc) 30%, transparent);
+}
+.terrain-cell--damage {
+  background:
+    repeating-linear-gradient(-45deg, color-mix(in srgb, var(--tc) 55%, transparent) 0 5px, color-mix(in srgb, var(--tc) 25%, transparent) 5px 10px);
+}
+.terrain-cell--heal {
+  background: radial-gradient(circle, color-mix(in srgb, var(--tc) 60%, transparent), color-mix(in srgb, var(--tc) 20%, transparent));
+}
 }

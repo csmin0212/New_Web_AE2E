@@ -1,12 +1,13 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { memo, useEffect, useRef, useState, type CSSProperties } from "react";
 import type { RollResult } from "@/lib/dice";
 import type { InlineResult, Segment } from "@/lib/inline";
 import { splitTitle } from "@/lib/stage";
 import type { ChatCard, ChatMessage } from "@/lib/types";
 
-export function ChatMessageView({
+// 채팅이 하나 올 때마다 300개를 다시 그리지 않게, 내용이 같은 메시지는 건너뛴다
+export const ChatMessageView = memo(function ChatMessageView({
   message: m,
   grouped,
   canDelete,
@@ -16,8 +17,8 @@ export function ChatMessageView({
   message: ChatMessage;
   grouped: boolean;
   canDelete: boolean;
-  onDelete: () => void;
-  onShowOnStage?: () => void;
+  onDelete: (id: string) => void;
+  onShowOnStage?: (url: string) => void;
 }) {
   const isPrivate = !!m.to || !!m.secret;
   const time = new Date(m.ts).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" });
@@ -56,14 +57,14 @@ export function ChatMessageView({
         )}
         <Body m={m} />
         {m.kind === "image" && onShowOnStage && (
-          <button className="btn mt-1 py-0.5 text-xs" onClick={onShowOnStage}>
+          <button className="btn mt-1 py-0.5 text-xs" onClick={() => onShowOnStage(m.text)}>
             <span>무대에 띄우기</span>
           </button>
         )}
       </div>
       {canDelete && (
         <button
-          onClick={onDelete}
+          onClick={() => onDelete(m.id)}
           className="absolute top-1 right-1 hidden rounded px-1 text-xs text-muted group-hover:block hover:text-hp"
           aria-label="메시지 지우기"
         >
@@ -72,7 +73,7 @@ export function ChatMessageView({
       )}
     </div>
   );
-}
+});
 
 function Body({ m }: { m: ChatMessage }) {
   switch (m.kind) {
@@ -209,15 +210,67 @@ function Bold({ text }: { text: string }) {
   );
 }
 
+// 카드 속 굴림 결과 — 누르면 실제로 굴러간 주사위가 펼쳐지고, 다른 곳을 누르면 닫힌다
 function RollChip({ r }: { r: InlineResult }) {
-  const detail = (r.dice ?? []).map((d) => `[${(d.results ?? []).join(",")}]`).join(" ");
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLSpanElement>(null);
+  const dice = (r.dice ?? []).flatMap((d) => (d.results ?? []).map((v) => ({ v, sides: d.sides })));
+  const diceSum = dice.reduce((a, d) => a + d.v, 0);
+  const rest = r.total - diceSum;
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: PointerEvent) => {
+      if (!box.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const key = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    window.addEventListener("pointerdown", close, true);
+    window.addEventListener("keydown", key);
+    return () => {
+      window.removeEventListener("pointerdown", close, true);
+      window.removeEventListener("keydown", key);
+    };
+  }, [open]);
+
   return (
-    <span
-      className="roll-chip mx-0.5 inline-flex items-baseline gap-1 rounded border px-1.5 font-bold"
-      title={`${r.expr} → ${detail || "주사위 없음"}`}
-    >
-      {r.total}
-      <span className="text-[10px] font-normal text-muted">{r.expr}</span>
+    <span ref={box} className="relative inline-block">
+      <button
+        type="button"
+        className="roll-chip mx-0.5 inline-flex items-baseline gap-1 rounded border px-1.5 font-bold"
+        onClick={() => setOpen((o) => !o)}
+        title="눌러서 주사위 보기"
+        aria-expanded={open}
+      >
+        {r.total}
+        <span className="text-[10px] font-normal text-muted">{r.expr}</span>
+      </button>
+      {open && (
+        <span className="roll-pop" role="dialog" aria-label={`${r.expr} 주사위`}>
+          <span className="mb-1 block text-[11px] text-muted">{r.expr}</span>
+          {dice.length ? (
+            <span className="flex max-w-64 flex-wrap gap-1">
+              {dice.map((d, i) => (
+                <span key={i} className="die" title={`d${d.sides}`}>
+                  {d.v}
+                </span>
+              ))}
+            </span>
+          ) : (
+            <span className="text-xs text-muted">주사위 없이 계산만 했어요.</span>
+          )}
+          <span className="mt-1.5 flex items-baseline gap-1 text-xs text-muted">
+            {dice.length > 0 && <span>주사위 {diceSum}</span>}
+            {rest !== 0 && (
+              <span>
+                {rest > 0 ? "+" : ""}
+                {rest}
+              </span>
+            )}
+            <span>=</span>
+            <b className="roll-total text-base">{r.total}</b>
+          </span>
+        </span>
+      )}
     </span>
   );
 }

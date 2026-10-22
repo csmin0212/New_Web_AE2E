@@ -1,5 +1,6 @@
 "use client";
 
+import { stageImageOf } from "@/lib/characterArt";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { CampaignShell } from "@/components/campaign/CampaignShell";
 import { ProfileEditor, type ProfileDraft } from "@/components/campaign/ProfileEditor";
@@ -59,7 +60,7 @@ function Cast() {
           key: `char:${c.id}`,
           name: splitTitle(e?.title || c.sheet.name).name,
           title: e?.subtitle || splitTitle(c.sheet.name).title || classLine(c),
-          image: e?.image ?? c.standing ?? c.portrait,
+          image: e?.image ?? stageImageOf(c),
           color: c.color,
           group: "PARTY",
           character: c,
@@ -75,7 +76,7 @@ function Cast() {
           key: `entry:${e.id}`,
           name: splitTitle(e.title).name,
           title: e.subtitle || splitTitle(e.title).title || undefined,
-          image: e.image ?? c?.standing ?? c?.portrait,
+          image: e.image ?? (c ? stageImageOf(c) : undefined),
           color: c?.color,
           group: e.group || "그 밖의 인물",
           character: c,
@@ -99,7 +100,7 @@ function Cast() {
       type: "person",
       title: c?.sheet.name ?? "",
       subtitle: classLine(c),
-      image: c?.standing ?? c?.portrait,
+      image: c?.standing,
       body: "",
       charId: c?.id,
       shared: c?.kind === "pc" || mine, // PC 프로필은 처음부터 모두에게, NPC 는 만날 때까지 비공개
@@ -211,6 +212,12 @@ function Hero({ p, i, onOpen }: { p: Person; i: number; onOpen: () => void }) {
       {p.image && shape?.kind === "sprite" && (
         // eslint-disable-next-line @next/next/no-img-element
         <img className="sc-sprite" src={p.image} alt={p.name} draggable={false} />
+      )}
+      {p.image && shape?.kind === "token" && (
+        <div className="sc-frame sc-frame--medal">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={p.image} alt={p.name} draggable={false} />
+        </div>
       )}
       {p.image && shape?.kind === "card" && (
         <div className="sc-frame">

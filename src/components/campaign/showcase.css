@@ -119,6 +119,14 @@
   object-fit: cover;
   object-position: 50% 15%;
 }
+.sc-hero .sc-frame--medal {
+  height: auto;
+  width: min(26vw, 260px);
+  aspect-ratio: 1;
+  margin-bottom: 18%;
+  border-radius: 50%;
+}
+
 /* 발치의 사선 이름띠 */
 .sc-plate {
   position: absolute;
